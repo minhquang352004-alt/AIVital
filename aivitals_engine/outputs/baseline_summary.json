@@ -1,0 +1,29 @@
+[
+  {
+    "method": "POS",
+    "version": "1.0",
+    "sampling_rate": 30,
+    "signal_length": 900,
+    "quality": 1.0,
+    "source": "sample_rgb.csv",
+    "output_file": "pos_bvp.csv"
+  },
+  {
+    "method": "CHROM",
+    "version": "1.0",
+    "sampling_rate": 30,
+    "signal_length": 900,
+    "quality": 1.0,
+    "source": "sample_rgb.csv",
+    "output_file": "chrom_bvp.csv"
+  },
+  {
+    "method": "GREEN",
+    "version": "1.0",
+    "sampling_rate": 30,
+    "signal_length": 900,
+    "quality": 1.0,
+    "source": "sample_rgb.csv",
+    "output_file": "green_bvp.csv"
+  }
+]

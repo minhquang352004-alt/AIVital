@@ -1,0 +1,44 @@
+# Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Python Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# External reference repositories (cloned for audit, 700MB+)
+rPPG-Toolbox/
+
+# Root documents & personal notes
+*.docx
+*.doc
+.~lock.*
+audit_repo_rPPG
+Chốt interface với Khoa
+note_TH_vitals
+
+# Temporary / backup files
+*.tmp
+*.bak
+*~
+
+# IDE & Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Thumbs.db
+
+# Root test outputs & ad-hoc test videos
+/outputs/
+*.mp4
+!aivitals_engine/samples/*.mp4
