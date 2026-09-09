@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 import numpy as np
 import pandas as pd
 
@@ -44,7 +44,7 @@ class BVPResult:
 class SignalRPPGPipeline:
     """
     Pipeline thực thi Signal / rPPG:
-    Input (Video / RGB) -> Signal Extraction -> Preprocessing -> rPPG (GREEN/CHROM/POS) -> BVP -> Quality -> Metadata
+    Input (Video / RGB) -> Signal Extraction -> Preprocessing -> rPPG (GREEN/CHROM/POS/Deep Model) -> BVP -> Quality -> Metadata
     """
 
     def __init__(self, fps: Optional[float] = None):
@@ -65,11 +65,19 @@ class SignalRPPGPipeline:
         self,
         rgb_array: np.ndarray,
         fs: float,
-        algorithm_name: str
+        algorithm: Union[str, RPPGMethod]
     ) -> BVPResult:
-        """Chạy pipeline trên mảng RGB đã có sẵn"""
+        """
+        Chạy pipeline trên mảng RGB đã có sẵn.
+        Tham số algorithm có thể là tên thuật toán ('POS', 'CHROM', 'GREEN')
+        hoặc bất kỳ instance nào kế thừa RPPGMethod (bao gồm cả Deep Learning Models).
+        """
         preprocessed_rgb = preprocess_rgb(rgb_array)
-        algo = self.get_algorithm(algorithm_name, fs=fs)
+        if isinstance(algorithm, RPPGMethod):
+            algo = algorithm
+            algo.fps = fs
+        else:
+            algo = self.get_algorithm(algorithm, fs=fs)
         
         algo.reset()
         algo.update(preprocessed_rgb)
@@ -89,8 +97,9 @@ class SignalRPPGPipeline:
     def run_on_file(
         self,
         source_path: str,
-        algorithm_name: str
+        algorithm: Union[str, RPPGMethod]
     ) -> BVPResult:
         """Chạy pipeline từ đường dẫn file (video hoặc CSV)"""
         rgb_array, fs = load_sample(source_path, default_fps=self.default_fps)
-        return self.run_on_rgb(rgb_array, fs, algorithm_name)
+        return self.run_on_rgb(rgb_array, fs, algorithm)
+
