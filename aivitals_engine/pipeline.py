@@ -65,19 +65,24 @@ class SignalRPPGPipeline:
         self,
         rgb_array: np.ndarray,
         fs: float,
-        algorithm: Union[str, RPPGMethod]
+        algorithm: Optional[Union[str, RPPGMethod]] = None,
+        algorithm_name: Optional[Union[str, RPPGMethod]] = None
     ) -> BVPResult:
         """
         Chạy pipeline trên mảng RGB đã có sẵn.
-        Tham số algorithm có thể là tên thuật toán ('POS', 'CHROM', 'GREEN')
+        Tham số algorithm (hoặc algorithm_name) có thể là tên thuật toán ('POS', 'CHROM', 'GREEN')
         hoặc bất kỳ instance nào kế thừa RPPGMethod (bao gồm cả Deep Learning Models).
         """
+        algo_choice = algorithm if algorithm is not None else algorithm_name
+        if algo_choice is None:
+            algo_choice = "POS"
+
         preprocessed_rgb = preprocess_rgb(rgb_array)
-        if isinstance(algorithm, RPPGMethod):
-            algo = algorithm
+        if isinstance(algo_choice, RPPGMethod):
+            algo = algo_choice
             algo.fps = fs
         else:
-            algo = self.get_algorithm(algorithm, fs=fs)
+            algo = self.get_algorithm(algo_choice, fs=fs)
         
         algo.reset()
         algo.update(preprocessed_rgb)
@@ -97,9 +102,13 @@ class SignalRPPGPipeline:
     def run_on_file(
         self,
         source_path: str,
-        algorithm: Union[str, RPPGMethod]
+        algorithm: Optional[Union[str, RPPGMethod]] = None,
+        algorithm_name: Optional[Union[str, RPPGMethod]] = None
     ) -> BVPResult:
         """Chạy pipeline từ đường dẫn file (video hoặc CSV)"""
+        algo_choice = algorithm if algorithm is not None else algorithm_name
+        if algo_choice is None:
+            algo_choice = "POS"
         rgb_array, fs = load_sample(source_path, default_fps=self.default_fps)
-        return self.run_on_rgb(rgb_array, fs, algorithm)
+        return self.run_on_rgb(rgb_array, fs, algorithm=algo_choice)
 

@@ -83,13 +83,17 @@ Dự án sử dụng Python 3.8+ và các thư viện xử lý tín hiệu lõi 
 
 ```bash
 # 1. Di chuyển vào thư mục dự án
-cd /path/to/TH_vittals
+cd AIVital
 
-# 2. Kích hoạt môi trường ảo (virtual environment)
+# 2. Khởi tạo môi trường ảo (virtual environment)
+python3 -m venv .venv
+# Hoặc trên Windows: python -m venv .venv
+
+# 3. Kích hoạt môi trường ảo
 source .venv/bin/activate
 # Hoặc trên Windows: .venv\Scripts\activate
 
-# 3. Cài đặt dependencies cần thiết
+# 4. Cài đặt dependencies cần thiết
 pip install -r aivitals_engine/requirements.txt
 ```
 
