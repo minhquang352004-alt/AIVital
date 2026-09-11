@@ -1,46 +1,102 @@
+# ==========================================
+# AIVitals Project .gitignore
+# ==========================================
+
 # Virtual Environments
 .venv/
 env/
 venv/
 ENV/
+env.bak/
+venv.bak/
 
-# Python Byte-compiled / cache files
+# Python Byte-compiled / Cache files
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
 
-# External reference repositories (cloned for audit, 700MB+)
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# Python Distribution / Packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# External Reference Repositories (Heavy source, 700MB+)
 rPPG-Toolbox/
 
-# Root documents & personal notes
-*.docx
-*.doc
-.~lock.*
-audit_repo_rPPG
-Chốt interface với Khoa
-note_TH_vitals
+# Datasets & Large Data Files
+data/
+datasets/
+*.mat
+*.h5
+*.hdf5
 
-# Temporary / backup files
+# Heavy Model Weights / Checkpoints (Exported or downloaded)
+*.pth
+*.pt
+*.onnx
+*.tflite
+*.weights
+*.bin
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Temporary / Log / Backup files
+*.log
 *.tmp
 *.bak
 *~
-
-# IDE & Editor configs
-.vscode/
-.idea/
-*.swp
+*.sw[p-z]
+.*.sw[p-z]
 *.swo
 *.kate-swp
 .*.kate-swp
 
-# OS generated files
+# Documents & Office Lock files
+*.docx
+*.doc
+*.pptx
+*.ppt
+*.xlsx
+*.xls
+*.pdf
+.~lock.*
+notes/
+scratch/
+
+# IDE & Editor configs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Operating System Generated Files
 .DS_Store
 .DS_Store?
 ehthumbs.db
 Thumbs.db
 
-# Root test outputs & ad-hoc test videos
+# Test Outputs & Ad-hoc Videos
 /outputs/
+aivitals_engine/outputs/*
+!aivitals_engine/outputs/.gitkeep
 *.mp4
-!aivitals_engine/samples/*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+
+# Keep Sample Files in Repository
+!aivitals_engine/samples/*

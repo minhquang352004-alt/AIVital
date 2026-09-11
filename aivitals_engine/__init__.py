@@ -12,7 +12,7 @@ Cấu trúc chuẩn gồm 9 modules:
 - config: Cấu hình tham số sinh lý
 """
 
-from .pipeline import SignalRPPGPipeline, BVPResult
+from .pipeline import SignalRPPGPipeline, BVPResult, BVPStreamPacket
 from .rppg.base import RPPGMethod
 from .rppg.green import GREENMethod
 from .rppg.chrom import CHROMMethod
@@ -31,6 +31,7 @@ __version__ = "1.0.0"
 __all__ = [
     "SignalRPPGPipeline",
     "BVPResult",
+    "BVPStreamPacket",
     "RPPGMethod",
     "GREENMethod",
     "CHROMMethod",

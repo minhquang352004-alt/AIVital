@@ -13,6 +13,27 @@ from aivitals_engine.rppg.chrom import CHROMMethod
 from aivitals_engine.rppg.pos import POSMethod
 
 @dataclass
+class BVPStreamPacket:
+    """
+    Data Contract gói dữ liệu BVP thời gian thực bàn giao cho module Vitals.
+    Sliding window chuẩn 8.0 giây (~240 mẫu ở 30 FPS).
+    """
+    bvp_signal: np.ndarray    # Mảng 1D BVP đã lọc (độ dài ~240 mẫu ở 8s @ 30 FPS)
+    fps: float = 30.0         # Tần số lấy mẫu thực tế/chuẩn hóa
+    quality_sqi: float = 1.0  # Điểm tin cậy tín hiệu (0.0 - 1.0)
+    status: str = "OK"        # "OK" | "BUFFERING" | "FACE_LOST" | "LOW_QUALITY"
+    progress: float = 1.0     # Tiến độ nạp đủ buffer ban đầu (0.0 -> 1.0)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "bvp_signal": self.bvp_signal.tolist() if isinstance(self.bvp_signal, np.ndarray) else list(self.bvp_signal),
+            "fps": self.fps,
+            "quality_sqi": self.quality_sqi,
+            "status": self.status,
+            "progress": self.progress
+        }
+
+@dataclass
 class BVPResult:
     """Kết quả đầu ra của module Signal / rPPG"""
     method: str
@@ -30,6 +51,43 @@ class BVPResult:
             "signal_length": self.signal_length,
             "quality": self.quality
         }
+
+    def to_stream_packet(self, window_sec: float = 8.0, status_override: Optional[str] = None) -> BVPStreamPacket:
+        """
+        Chuyển đổi kết quả BVP sang gói dữ liệu chuẩn BVPStreamPacket bàn giao cho module Vitals.
+        Lấy cửa sổ window_sec gần nhất (mặc định 8.0s ~ 240 mẫu ở 30 FPS).
+        """
+        target_len = int(round(self.sampling_rate * window_sec))
+        sig_len = len(self.bvp_signal)
+
+        if sig_len == 0:
+            return BVPStreamPacket(
+                bvp_signal=np.array([], dtype=np.float64),
+                fps=float(self.sampling_rate),
+                quality_sqi=0.0,
+                status="BUFFERING",
+                progress=0.0
+            )
+
+        if sig_len >= target_len:
+            packet_signal = self.bvp_signal[-target_len:]
+            progress = 1.0
+            status = "LOW_QUALITY" if self.quality < 0.40 else "OK"
+        else:
+            packet_signal = self.bvp_signal
+            progress = round(sig_len / target_len, 2)
+            status = "BUFFERING"
+
+        if status_override is not None:
+            status = status_override
+
+        return BVPStreamPacket(
+            bvp_signal=packet_signal,
+            fps=float(self.sampling_rate),
+            quality_sqi=float(self.quality),
+            status=status,
+            progress=float(progress)
+        )
 
     def save_csv(self, output_path: str) -> str:
         """Lưu chuỗi sóng BVP ra file CSV"""
