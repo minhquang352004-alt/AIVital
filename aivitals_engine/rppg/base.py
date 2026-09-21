@@ -74,7 +74,7 @@ class RPPGMethod(ABC):
         """
 
     # ──────────────────────────────────────────────────────────────────────────
-    # Batch API — dùng trong pipeline_realtime
+    # Batch API — dùng trong signal_pipeline_realtime
     # ──────────────────────────────────────────────────────────────────────────
 
     def process(self, rgb_array: np.ndarray) -> np.ndarray:

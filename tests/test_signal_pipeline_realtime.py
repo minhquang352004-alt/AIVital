@@ -1,14 +1,14 @@
 import unittest
 import numpy as np
 
-from aivitals_engine.pipeline_realtime import RealtimeRGBPipeline, FrameResult
+from aivitals_engine.signal_pipeline_realtime import RealtimeSignalPipeline, FrameResult
 
 
-class TestRealtimeRGBPipeline(unittest.TestCase):
-    """Kiểm thử tích hợp cho pipeline_realtime.py."""
+class TestRealtimeSignalPipeline(unittest.TestCase):
+    """Kiểm thử tích hợp cho signal_pipeline_realtime.py."""
 
     def test_pipeline_buffering_to_ready(self):
-        pipeline = RealtimeRGBPipeline(window_sec=3.0, min_sec=1.5, target_fps=30.0)
+        pipeline = RealtimeSignalPipeline(window_sec=3.0, min_sec=1.5, target_fps=30.0)
 
         # 1. Ảnh rỗng hoặc mất mặt
         res_empty = pipeline.process_frame(np.zeros((0, 0, 3), dtype=np.uint8))

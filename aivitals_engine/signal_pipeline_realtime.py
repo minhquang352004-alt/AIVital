@@ -1,20 +1,21 @@
 """
-pipeline_realtime.py
-====================
-Orchestrator kết nối toàn bộ luồng xử lý rPPG realtime:
+signal_pipeline_realtime.py
+===========================
+Orchestrator kết nối toàn bộ luồng xử lý tín hiệu rPPG thời gian thực:
 
     Frame → FaceDetector → ROIExtractor → SlidingWindowBuffer
-          → Resampling → rPPGMethod → BVP + SQI → FrameResult
+          → Resampling → rPPGMethod (POS/CHROM/GREEN) → BVP + SQI → FrameResult
 
 Cách dùng:
-    >>> pipeline = RealtimeRGBPipeline()
+    >>> from aivitals_engine.signal_pipeline_realtime import RealtimeSignalPipeline
+    >>> pipeline = RealtimeSignalPipeline()
     >>> result   = pipeline.process_frame(frame)
     >>> if result.is_ready:
-    ...     bvp = result.bvp_signal   # sóng mạch 1D sẵn sàng tính HR/HRV
+    ...     bvp = result.bvp_signal   # sóng mạch 1D bàn giao cho Khoa (HR/HRV) và Quang (biểu đồ)
 """
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import numpy as np
@@ -35,7 +36,7 @@ from aivitals_engine.signal.sliding_buffer import SlidingWindowBuffer
 @dataclass
 class FrameResult:
     """
-    Kết quả xử lý 1 frame từ RealtimeRGBPipeline.
+    Kết quả xử lý 1 frame từ RealtimeSignalPipeline.
 
     Attributes:
         is_ready:       True khi buffer đủ dữ liệu và bvp_signal hợp lệ.
@@ -48,7 +49,6 @@ class FrameResult:
         bvp_signal:     Sóng mạch 1D đã lọc sạch → Khoa (HR/HRV) + Quang (đồ thị).
         quality_sqi:    SQI [0.0 → 1.0] → Quang (đèn báo tín hiệu).
         resampled_rgb:  RGB đã resample (giữ DC), shape (N, 3).
-        cleaned_rgb:    Alias của resampled_rgb (backward compatibility).
         fps:            FPS thực tế từ buffer.
         progress:       Tiến độ nạp buffer [0.0 → 1.0] → Quang (thanh chờ).
         raw_rgb:        Vector RGB thô frame này (3,).
@@ -61,7 +61,6 @@ class FrameResult:
     bvp_signal:     Optional[np.ndarray] = None
     quality_sqi:    float                = 0.0
     resampled_rgb:  Optional[np.ndarray] = None
-    cleaned_rgb:    Optional[np.ndarray] = None   # alias → backward compat
     fps:            float                = 30.0
     progress:       float                = 0.0
     raw_rgb:        Optional[np.ndarray] = None
@@ -74,9 +73,9 @@ class FrameResult:
 # Pipeline chính
 # ──────────────────────────────────────────────────────────────────────────────
 
-class RealtimeRGBPipeline:
+class RealtimeSignalPipeline:
     """
-    Pipeline realtime: Frame → Face → ROI → Buffer → rPPG → BVP + SQI.
+    Pipeline xử lý tín hiệu realtime: Frame → Face → ROI → Buffer → rPPG → BVP + SQI.
 
     Mỗi lần gọi `process_frame()` xử lý đúng 1 frame và trả về `FrameResult`.
     """
@@ -136,7 +135,7 @@ class RealtimeRGBPipeline:
         frame:     np.ndarray,
         timestamp: Optional[float] = None,
     ) -> FrameResult:
-        """Xử lý 1 frame BGR từ camera và cập nhật pipeline."""
+        """Xử lý 1 frame BGR từ camera và cập nhật pipeline tín hiệu."""
         self._frame_count += 1
         ts = timestamp if timestamp is not None else time.perf_counter()
 
@@ -245,12 +244,12 @@ class RealtimeRGBPipeline:
 
     def _result_ok(
         self,
-        bvp:          np.ndarray,
-        sqi:          float,
+        bvp:           np.ndarray,
+        sqi:           float,
         effective_fps: float,
         rgb_resampled: np.ndarray,
-        raw_rgb:      np.ndarray,
-        bbox:         tuple,
+        raw_rgb:       np.ndarray,
+        bbox:          tuple,
     ) -> FrameResult:
         status = "OK" if sqi >= self._SQI_THRESHOLD else "LOW_QUALITY"
         return FrameResult(
@@ -259,7 +258,6 @@ class RealtimeRGBPipeline:
             bvp_signal     = bvp,
             quality_sqi    = sqi,
             resampled_rgb  = rgb_resampled,
-            cleaned_rgb    = rgb_resampled,   # alias
             fps            = effective_fps,
             progress       = self._buffer.get_progress(),
             raw_rgb        = raw_rgb,

@@ -13,6 +13,7 @@ Cấu trúc chuẩn gồm 9 modules:
 """
 
 from .pipeline import SignalRPPGPipeline, BVPResult, BVPStreamPacket
+from .signal_pipeline_realtime import RealtimeSignalPipeline, FrameResult
 from .rppg.base import RPPGMethod
 from .rppg.green import GREENMethod
 from .rppg.chrom import CHROMMethod
@@ -29,6 +30,8 @@ from .validation.validator import VitalsValidator
 __version__ = "1.0.0"
 
 __all__ = [
+    "RealtimeSignalPipeline",
+    "FrameResult",
     "SignalRPPGPipeline",
     "BVPResult",
     "BVPStreamPacket",
