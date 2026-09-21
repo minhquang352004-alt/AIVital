@@ -3,6 +3,7 @@ from .filter import butter_bandpass_filter, normalize_signal
 from .resample import resample_to_fixed_fps
 from .preprocess import preprocess_rgb
 from .reader import load_sample, load_rgb_from_csv, load_rgb_from_video
+from .sliding_buffer import SlidingWindowBuffer
 
 __all__ = [
     "smoothness_priors_detrend",
@@ -12,5 +13,6 @@ __all__ = [
     "preprocess_rgb",
     "load_sample",
     "load_rgb_from_csv",
-    "load_rgb_from_video"
+    "load_rgb_from_video",
+    "SlidingWindowBuffer",
 ]

@@ -1,86 +1,140 @@
-from typing import Tuple, List, Optional
+from typing import List, Optional, Tuple
+
 import numpy as np
+
+from aivitals_engine.config.settings import ROIConfig
+
 
 class ROIExtractor:
     """
-    Trích xuất các vùng quan tâm (ROI: Trán, Má) từ Bounding Box khuôn mặt
-    và tính toán vector trung bình không gian [R, G, B].
+    Trích xuất các vùng quan tâm (ROI: Trán, Má trái, Má phải) từ Face Bounding Box
+    và tính vector trung bình không gian [R, G, B] (Spatial Averaging).
+
+    Input:  frame BGR (np.ndarray) + bbox (x, y, w, h)
+    Output: vector RGB trung bình (np.ndarray, shape (3,))
     """
 
-    def __init__(self, crop_forehead: bool = True, crop_cheeks: bool = True):
-        self.crop_forehead = crop_forehead
-        self.crop_cheeks = crop_cheeks
+    def __init__(self, config: Optional[ROIConfig] = None) -> None:
+        self._cfg = config if config is not None else ROIConfig()
 
-    def get_sub_rois(self, bbox: Tuple[int, int, int, int]) -> List[Tuple[int, int, int, int]]:
+    # ──────────────────────────────────────────────────────────────────────────
+    # Public API
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def get_sub_rois(
+        self, bbox: Tuple[int, int, int, int]
+    ) -> List[Tuple[int, int, int, int]]:
         """
-        Tính toán tọa độ các sub-ROIs (Trán, 2 bên Má) từ Face Bounding Box.
-        bbox: (x, y, w, h)
+        Tính tọa độ các sub-ROI từ Face Bounding Box.
+
+        Args:
+            bbox: (x, y, w, h) — tọa độ và kích thước bounding box khuôn mặt.
+
+        Returns:
+            Danh sách các sub-ROI (x, y, w, h).
         """
         x, y, w, h = bbox
-        rois = []
+        cfg = self._cfg
+        rois: List[Tuple[int, int, int, int]] = []
 
-        if self.crop_forehead:
-            # Vùng trán: 50% bề ngang ở giữa, 20% chiều cao trên cùng
-            fh_x = int(x + 0.25 * w)
-            fh_y = int(y + 0.08 * h)
-            fh_w = int(0.50 * w)
-            fh_h = int(0.18 * h)
-            rois.append((fh_x, fh_y, fh_w, fh_h))
+        if cfg.crop_forehead:
+            rois.append(self._forehead_roi(x, y, w, h))
 
-        if self.crop_cheeks:
-            # Má trái (theo góc nhìn ảnh)
-            lc_x = int(x + 0.15 * w)
-            lc_y = int(y + 0.50 * h)
-            lc_w = int(0.25 * w)
-            lc_h = int(0.20 * h)
-            rois.append((lc_x, lc_y, lc_w, lc_h))
+        if cfg.crop_cheeks:
+            rois.append(self._left_cheek_roi(x, y, w, h))
+            rois.append(self._right_cheek_roi(x, y, w, h))
 
-            # Má phải (theo góc nhìn ảnh)
-            rc_x = int(x + 0.60 * w)
-            rc_y = int(y + 0.50 * h)
-            rc_w = int(0.25 * w)
-            rc_h = int(0.20 * h)
-            rois.append((rc_x, rc_y, rc_w, rc_h))
-
-        # Nếu không bật tách vùng con, lấy 60% vùng giữa mặt
         if not rois:
-            rois.append((int(x + 0.2 * w), int(y + 0.2 * h), int(0.6 * w), int(0.6 * h)))
+            rois.append(self._fallback_roi(x, y, w, h))
 
         return rois
 
     def extract_mean_rgb(
         self,
         frame: np.ndarray,
-        bbox: Optional[Tuple[int, int, int, int]]
+        bbox: Optional[Tuple[int, int, int, int]],
     ) -> np.ndarray:
         """
-        Trích xuất giá trị trung bình [R, G, B] từ các vùng ROI.
-        Lưu ý: OpenCV đọc ảnh dạng BGR, hàm này tự động chuyển đổi sang [R, G, B].
+        Tính vector [R, G, B] trung bình từ các sub-ROI trên frame.
+
+        OpenCV đọc ảnh dạng BGR — hàm này tự chuyển đổi sang RGB trước khi trả về.
+
+        Args:
+            frame: Ảnh BGR từ camera (np.ndarray, HxWx3).
+            bbox:  Bounding box khuôn mặt (x, y, w, h).
+
+        Returns:
+            np.ndarray shape (3,) — [R, G, B] trung bình. Trả về zeros nếu không hợp lệ.
         """
         if frame is None or bbox is None:
             return np.zeros(3)
 
-        h_frame, w_frame = frame.shape[:2]
-        rois = self.get_sub_rois(bbox)
-        
-        all_pixels = []
-        for rx, ry, rw, rh in rois:
-            # Kẹp tọa độ trong khung ảnh
-            x1 = max(0, min(rx, w_frame - 1))
-            y1 = max(0, min(ry, h_frame - 1))
-            x2 = max(x1 + 1, min(rx + rw, w_frame))
-            y2 = max(y1 + 1, min(ry + rh, h_frame))
+        frame_h, frame_w = frame.shape[:2]
+        pixel_batches = [
+            self._crop_pixels(frame, roi, frame_h, frame_w)
+            for roi in self.get_sub_rois(bbox)
+        ]
+        valid_batches = [batch for batch in pixel_batches if batch is not None]
 
-            roi_patch = frame[y1:y2, x1:x2]
-            if roi_patch.size > 0:
-                all_pixels.append(roi_patch.reshape(-1, 3))
-
-        if not all_pixels:
+        if not valid_batches:
             return np.zeros(3)
 
-        combined = np.vstack(all_pixels)
-        mean_bgr = np.mean(combined, axis=0)
+        mean_bgr = np.mean(np.vstack(valid_batches), axis=0)
+        return np.array([mean_bgr[2], mean_bgr[1], mean_bgr[0]], dtype=np.float64)
 
-        # Chuyển BGR sang RGB
-        mean_rgb = np.array([mean_bgr[2], mean_bgr[1], mean_bgr[0]], dtype=np.float64)
-        return mean_rgb
+    # ──────────────────────────────────────────────────────────────────────────
+    # Private helpers — tính tọa độ từng vùng
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _forehead_roi(self, x: int, y: int, w: int, h: int) -> Tuple[int, int, int, int]:
+        cfg = self._cfg
+        return (
+            int(x + cfg.forehead_x_offset * w),
+            int(y + cfg.forehead_y_offset * h),
+            int(cfg.forehead_width_ratio * w),
+            int(cfg.forehead_height_ratio * h),
+        )
+
+    def _left_cheek_roi(self, x: int, y: int, w: int, h: int) -> Tuple[int, int, int, int]:
+        cfg = self._cfg
+        return (
+            int(x + cfg.left_cheek_x_offset * w),
+            int(y + cfg.left_cheek_y_offset * h),
+            int(cfg.left_cheek_width_ratio * w),
+            int(cfg.left_cheek_height_ratio * h),
+        )
+
+    def _right_cheek_roi(self, x: int, y: int, w: int, h: int) -> Tuple[int, int, int, int]:
+        cfg = self._cfg
+        return (
+            int(x + cfg.right_cheek_x_offset * w),
+            int(y + cfg.right_cheek_y_offset * h),
+            int(cfg.right_cheek_width_ratio * w),
+            int(cfg.right_cheek_height_ratio * h),
+        )
+
+    def _fallback_roi(self, x: int, y: int, w: int, h: int) -> Tuple[int, int, int, int]:
+        cfg = self._cfg
+        return (
+            int(x + cfg.fallback_x_offset * w),
+            int(y + cfg.fallback_y_offset * h),
+            int(cfg.fallback_width_ratio * w),
+            int(cfg.fallback_height_ratio * h),
+        )
+
+    @staticmethod
+    def _crop_pixels(
+        frame: np.ndarray,
+        roi: Tuple[int, int, int, int],
+        frame_h: int,
+        frame_w: int,
+    ) -> Optional[np.ndarray]:
+        """Cắt vùng ROI từ frame, kẹp trong biên ảnh. Trả None nếu vùng rỗng."""
+        rx, ry, rw, rh = roi
+        x1 = max(0, min(rx, frame_w - 1))
+        y1 = max(0, min(ry, frame_h - 1))
+        x2 = max(x1 + 1, min(rx + rw, frame_w))
+        y2 = max(y1 + 1, min(ry + rh, frame_h))
+
+        patch = frame[y1:y2, x1:x2]
+        return patch.reshape(-1, 3) if patch.size > 0 else None

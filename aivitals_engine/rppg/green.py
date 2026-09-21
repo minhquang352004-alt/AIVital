@@ -27,6 +27,7 @@ class GREENMethod(RPPGMethod):
         # Chuẩn hóa tín hiệu (mean=0, std=1)
         norm_green = normalize_signal(green_signal)
 
-        # Lọc dải thông nhịp tim sinh lý [0.75, 2.5] Hz
-        bvp = butter_bandpass_filter(norm_green, lowcut=0.75, highcut=2.5, fs=self.fps, order=2)
+        # Lọc dải thông nhịp tim sinh lý
+        bvp = butter_bandpass_filter(norm_green, lowcut=self.lowcut, highcut=self.highcut, fs=self.fps, order=2)
         return bvp
+
