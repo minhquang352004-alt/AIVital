@@ -49,9 +49,10 @@ class CHROMMethod(RPPGMethod):
             Xs = 3.0 * rgb_norm[:, 0] - 2.0 * rgb_norm[:, 1]
             Ys = 1.5 * rgb_norm[:, 0] + rgb_norm[:, 1] - 1.5 * rgb_norm[:, 2]
 
-            # Lọc dải thông
-            Xf = butter_bandpass_filter(Xs, lowcut=0.75, highcut=2.5, fs=self.fps, order=3)
-            Yf = butter_bandpass_filter(Ys, lowcut=0.75, highcut=2.5, fs=self.fps, order=3)
+            # Lọc dải thông sắc độ
+            Xf = butter_bandpass_filter(Xs, lowcut=self.lowcut, highcut=self.highcut, fs=self.fps, order=self.filter_order)
+            Yf = butter_bandpass_filter(Ys, lowcut=self.lowcut, highcut=self.highcut, fs=self.fps, order=self.filter_order)
+
 
             std_y = np.std(Yf)
             alpha = (np.std(Xf) / std_y) if std_y > 1e-7 else 0.0

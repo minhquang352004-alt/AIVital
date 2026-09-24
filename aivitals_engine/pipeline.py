@@ -18,19 +18,23 @@ class BVPStreamPacket:
     Data Contract gói dữ liệu BVP thời gian thực bàn giao cho module Vitals.
     Sliding window chuẩn 8.0 giây (~240 mẫu ở 30 FPS).
     """
-    bvp_signal: np.ndarray    # Mảng 1D BVP đã lọc (độ dài ~240 mẫu ở 8s @ 30 FPS)
-    fps: float = 30.0         # Tần số lấy mẫu thực tế/chuẩn hóa
-    quality_sqi: float = 1.0  # Điểm tin cậy tín hiệu (0.0 - 1.0)
-    status: str = "OK"        # "OK" | "BUFFERING" | "FACE_LOST" | "LOW_QUALITY"
-    progress: float = 1.0     # Tiến độ nạp đủ buffer ban đầu (0.0 -> 1.0)
+    bvp_signal:     np.ndarray    # Mảng 1D BVP đã lọc (độ dài ~240 mẫu ở 8s @ 30 FPS)
+    fps:            float = 30.0  # Tần số lấy mẫu thực tế/chuẩn hóa
+    quality_sqi:    float = 1.0   # Điểm tin cậy tín hiệu (0.0 - 1.0)
+    status:         str   = "OK"  # "OK" | "BUFFERING" | "FACE_LOST" | "LOW_QUALITY"
+    progress:       float = 1.0   # Tiến độ nạp đủ buffer ban đầu (0.0 -> 1.0)
+    method_name:    str   = "POS" # Thuật toán đã dùng: "GREEN", "CHROM", "POS"
+    method_version: str   = "1.0" # Phiên bản thuật toán
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "bvp_signal": self.bvp_signal.tolist() if isinstance(self.bvp_signal, np.ndarray) else list(self.bvp_signal),
-            "fps": self.fps,
-            "quality_sqi": self.quality_sqi,
-            "status": self.status,
-            "progress": self.progress
+            "bvp_signal":     self.bvp_signal.tolist() if isinstance(self.bvp_signal, np.ndarray) else list(self.bvp_signal),
+            "fps":            self.fps,
+            "quality_sqi":    self.quality_sqi,
+            "status":         self.status,
+            "progress":       self.progress,
+            "method_name":    self.method_name,
+            "method_version": self.method_version,
         }
 
 @dataclass
@@ -62,11 +66,13 @@ class BVPResult:
 
         if sig_len == 0:
             return BVPStreamPacket(
-                bvp_signal=np.array([], dtype=np.float64),
-                fps=float(self.sampling_rate),
-                quality_sqi=0.0,
-                status="BUFFERING",
-                progress=0.0
+                bvp_signal     = np.array([], dtype=np.float64),
+                fps            = float(self.sampling_rate),
+                quality_sqi    = 0.0,
+                status         = "BUFFERING",
+                progress       = 0.0,
+                method_name    = self.method,
+                method_version = self.version,
             )
 
         if sig_len >= target_len:
@@ -82,11 +88,13 @@ class BVPResult:
             status = status_override
 
         return BVPStreamPacket(
-            bvp_signal=packet_signal,
-            fps=float(self.sampling_rate),
-            quality_sqi=float(self.quality),
-            status=status,
-            progress=float(progress)
+            bvp_signal     = packet_signal,
+            fps            = float(self.sampling_rate),
+            quality_sqi    = float(self.quality),
+            status         = status,
+            progress       = float(progress),
+            method_name    = self.method,
+            method_version = self.version,
         )
 
     def save_csv(self, output_path: str) -> str:

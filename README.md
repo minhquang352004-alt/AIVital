@@ -73,12 +73,17 @@ AIVital/
 │   ├── models/                           # Khung giao diện trừu tượng cho Deep Learning Models (V2)
 │   ├── samples/                          # Dữ liệu mẫu kiểm thử (.mp4, .csv)
 │   ├── outputs/                          # Thư mục lưu kết quả kiểm thử (.gitkeep)
+│   ├── scripts/                          # 🚀 Script kiểm thử & mô phỏng luồng camera thời gian thực
+│   │   ├── run_signal_pipeline.py        # Runner kiểm thử Signal Pipeline (Face/ROI -> BVP + SQI)
+│   │   └── README.md                     # Hướng dẫn chi tiết & link tải dataset
 │   ├── pipeline.py                       # Pipeline điều phối & Data Contract BVPStreamPacket
-│   ├── main.py                           # CLI Test Runner
+│   ├── signal_pipeline_realtime.py       # Pipeline thời gian thực: Frame -> Face -> ROI -> Buffer -> BVP
+│   ├── main.py                           # CLI Test Runner (Batch mode)
 │   ├── requirements.txt                  # Dependencies nhẹ cho CPU (< 150 MB)
 │   ├── README.md                         # Hướng dẫn chi tiết cho Engine
 │   └── SOURCE_AUDIT.md                   # Báo cáo kỹ thuật kiểm tra mã nguồn rPPG
 │
+├── tests/                                # 🧪 Bộ kiểm thử tự động (Unit & Integration tests)
 ├── backend/                              # ⚙️ Dịch vụ API, WebSocket & Cơ sở dữ liệu
 └── frontend/                             # 🖥️ Giao diện Web Dashboard đo sinh hiệu thời gian thực
 ```
@@ -89,6 +94,7 @@ AIVital/
 
 * 📑 **Báo cáo Khảo sát & Đánh giá Mã nguồn rPPG:** Xem chi tiết tại [**`aivitals_engine/SOURCE_AUDIT.md`**](aivitals_engine/SOURCE_AUDIT.md) — Bản phân tích chuyên sâu 17 thuật toán (Unsupervised & Deep Models), đặc tả I/O và các bẫy kỹ thuật.
 * 📦 **Hướng dẫn Cài đặt & Chạy Module Engine:** Xem tại [**`aivitals_engine/README.md`**](aivitals_engine/README.md) — Chi tiết 9 modules, cấu hình tham số và hướng dẫn chạy test runner CLI.
+* 🎥 **Kiểm Thử Luồng Camera Thời Gian Thực & Link Dataset:** Xem tại [**`aivitals_engine/scripts/README.md`**](aivitals_engine/scripts/README.md) — Hướng dẫn tải video test từ Google Drive và chạy so sánh 3 phương pháp rPPG (GREEN, CHROM, POS).
 
 ---
 

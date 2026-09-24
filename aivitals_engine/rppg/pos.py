@@ -48,7 +48,14 @@ class POSMethod(RPPGMethod):
                 h = h - np.mean(h)
                 H[m:n] += h
 
-        # Khử trôi đường đẳng điện + Lọc dải thông
-        bvp = smoothness_priors_detrend(H, lambda_value=100.0)
-        bvp = butter_bandpass_filter(bvp, lowcut=0.75, highcut=2.5, fs=self.fps, order=1)
+        # Khử trôi đường đẳng điện + Lọc dải thông trên sóng BVP 1D
+        bvp = smoothness_priors_detrend(H, lambda_value=self.detrend_lambda)
+        bvp = butter_bandpass_filter(
+            bvp,
+            lowcut=self.lowcut,
+            highcut=self.highcut,
+            fs=self.fps,
+            order=self.filter_order
+        )
         return bvp
+

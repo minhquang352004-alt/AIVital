@@ -1,74 +1,144 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional
+
 import numpy as np
+
+from aivitals_engine.config.settings import SignalConfig
 from aivitals_engine.quality.sqi import calculate_bvp_quality
+
 
 class RPPGMethod(ABC):
     """
     Interface thống nhất cho các thuật toán rPPG (GREEN, CHROM, POS).
-    Đảm bảo trích xuất sóng BVP, tính toán chất lượng và metadata mà không phụ thuộc module bên ngoài.
+
+    Hỗ trợ 2 use case độc lập:
+    ┌─────────────────────────────────────────────────────────────────┐
+    │  Batch API (pipeline)   : process(rgb_array) → bvp             │
+    │  Streaming API (Khoa)   : update() → get_signal() → get_quality│
+    └─────────────────────────────────────────────────────────────────┘
+
+    Subclass chỉ cần implement:
+        - name      (property)
+        - version   (property)
+        - _compute_bvp(rgb_array) → np.ndarray
     """
 
-    def __init__(self, fps: float = 30.0, window_sec: float = 1.6):
-        self.fps = float(fps)
-        self.window_sec = float(window_sec)
-        self.window_len = max(9, int(np.ceil(window_sec * fps)))
-        self._rgb_buffer: List[np.ndarray] = []
-        self._latest_bvp: np.ndarray = np.array([])
-        self._latest_quality: float = 0.0
+    def __init__(
+        self,
+        fps:            float            = 30.0,
+        window_sec:     Optional[float]  = None,
+        lowcut:         Optional[float]  = None,
+        highcut:        Optional[float]  = None,
+        detrend_lambda: Optional[float]  = None,
+        config:         Optional[SignalConfig] = None,
+    ) -> None:
+        cfg = config if config is not None else SignalConfig()
+
+        self.fps            = float(fps)
+        self.window_sec     = float(window_sec     if window_sec     is not None else cfg.sub_window_sec)
+        self.window_len     = max(9, int(np.ceil(self.window_sec * self.fps)))
+        self.lowcut         = float(lowcut         if lowcut         is not None else cfg.low_cutoff_hz)
+        self.highcut        = float(highcut        if highcut        is not None else cfg.high_cutoff_hz)
+        self.detrend_lambda = float(detrend_lambda if detrend_lambda is not None else cfg.detrend_lambda)
+        self.filter_order   = int(cfg.filter_order)
+
+        # ── Streaming API internal state ──────────────────────────────────────
+        self._stream_buffer: List[np.ndarray] = []
+        self._latest_bvp:    np.ndarray       = np.array([])
+        self._latest_quality: float           = 0.0
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Abstract contract — subclass phải implement
+    # ──────────────────────────────────────────────────────────────────────────
 
     @property
     @abstractmethod
     def name(self) -> str:
-        """Tên phương thức ('GREEN', 'CHROM', 'POS')"""
-        pass
+        """Tên phương thức: 'GREEN', 'CHROM', hoặc 'POS'."""
 
     @property
     @abstractmethod
     def version(self) -> str:
-        """Phiên bản thuật toán ('1.0')"""
-        pass
-
-    def reset(self) -> None:
-        """Reset sạch bộ nhớ và buffer"""
-        self._rgb_buffer.clear()
-        self._latest_bvp = np.array([])
-        self._latest_quality = 0.0
-
-    def update(self, rgb: np.ndarray) -> None:
-        """
-        Đưa mẫu RGB vào buffer.
-        Hỗ trợ 1 mẫu 1D (3,) hoặc mảng nhiều mẫu 2D (K, 3).
-        """
-        arr = np.asarray(rgb, dtype=np.float64)
-        if arr.ndim == 1 and arr.shape[0] == 3:
-            self._rgb_buffer.append(arr)
-        elif arr.ndim == 2 and arr.shape[1] == 3:
-            for row in arr:
-                self._rgb_buffer.append(row)
-        else:
-            raise ValueError(f"Định dạng RGB không hợp lệ: shape {arr.shape}. Cần (3,) hoặc (K, 3).")
+        """Phiên bản thuật toán, ví dụ: '1.0'."""
 
     @abstractmethod
     def _compute_bvp(self, rgb_array: np.ndarray) -> np.ndarray:
-        """Thuật toán biến đổi RGB buffer -> BVP signal"""
-        pass
+        """
+        Lõi thuật toán: chuyển đổi mảng RGB → sóng BVP 1D.
+
+        Args:
+            rgb_array: np.ndarray shape (N, 3), DC đã được giữ nguyên.
+
+        Returns:
+            np.ndarray shape (N,) — sóng mạch đã qua detrend + bandpass.
+        """
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Batch API — dùng trong signal_pipeline_realtime
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def process(self, rgb_array: np.ndarray) -> np.ndarray:
+        """
+        Batch processing: nhận mảng RGB đã tích lũy sẵn, trả về BVP trực tiếp.
+
+        Hàm này là pure function — không thay đổi trạng thái streaming buffer.
+
+        Args:
+            rgb_array: np.ndarray shape (N, 3).
+
+        Returns:
+            np.ndarray shape (N,) — sóng BVP đã lọc sạch.
+        """
+        arr = np.asarray(rgb_array, dtype=np.float64)
+        if arr.ndim == 1 and arr.shape[0] == 3:
+            arr = arr.reshape(1, 3)
+        if arr.ndim != 2 or arr.shape[1] != 3:
+            raise ValueError(
+                f"rgb_array không hợp lệ: shape {arr.shape}. Cần (N, 3)."
+            )
+        return self._compute_bvp(arr)
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Streaming API — dùng cho tích hợp frame-by-frame (Khoa / vitals team)
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def update(self, rgb: np.ndarray) -> None:
+        """
+        Đẩy mẫu RGB vào streaming buffer.
+
+        Args:
+            rgb: Một mẫu (3,) hoặc nhiều mẫu (K, 3).
+        """
+        arr = np.asarray(rgb, dtype=np.float64)
+        if arr.ndim == 1 and arr.shape[0] == 3:
+            self._stream_buffer.append(arr)
+        elif arr.ndim == 2 and arr.shape[1] == 3:
+            self._stream_buffer.extend(arr)
+        else:
+            raise ValueError(
+                f"Định dạng RGB không hợp lệ: shape {arr.shape}. Cần (3,) hoặc (K, 3)."
+            )
 
     def get_signal(self) -> np.ndarray:
         """
-        Trích xuất và trả về tín hiệu BVP 1D (N,).
+        Trích xuất tín hiệu BVP từ streaming buffer hiện tại.
+
+        Returns:
+            np.ndarray shape (N,). Zeros nếu buffer chưa đủ window_len mẫu.
         """
-        if len(self._rgb_buffer) < self.window_len:
-            self._latest_bvp = np.zeros(len(self._rgb_buffer))
+        n = len(self._stream_buffer)
+        if n < self.window_len:
+            self._latest_bvp = np.zeros(n)
             return self._latest_bvp
 
-        arr = np.asarray(self._rgb_buffer)
+        arr = np.asarray(self._stream_buffer)
         self._latest_bvp = self._compute_bvp(arr)
         return self._latest_bvp
 
     def get_quality(self) -> float:
         """
-        Chỉ số chất lượng tín hiệu BVP (0.0 đến 1.0).
+        SQI của tín hiệu BVP hiện tại [0.0 → 1.0].
+        Tự động gọi get_signal() nếu chưa có kết quả.
         """
         if len(self._latest_bvp) == 0:
             self.get_signal()
@@ -76,23 +146,19 @@ class RPPGMethod(ABC):
         return self._latest_quality
 
     def get_metadata(self) -> Dict[str, Any]:
-        """
-        Metadata chuẩn của lần chạy rPPG.
-        """
+        """Metadata chuẩn của lần chạy rPPG gần nhất."""
         if len(self._latest_bvp) == 0:
             self.get_signal()
-        quality = self.get_quality()
-
         return {
-            "method": self.name,
-            "version": self.version,
+            "method":        self.name,
+            "version":       self.version,
             "sampling_rate": int(round(self.fps)),
             "signal_length": len(self._latest_bvp),
-            "quality": quality
+            "quality":       self.get_quality(),
         }
 
-    def process(self, rgb_array: np.ndarray) -> np.ndarray:
-        """Hàm tiện ích chạy trực tiếp trên mảng RGB đã có sẵn"""
-        self.reset()
-        self.update(rgb_array)
-        return self.get_signal()
+    def reset(self) -> None:
+        """Reset streaming buffer và kết quả cached."""
+        self._stream_buffer.clear()
+        self._latest_bvp     = np.array([])
+        self._latest_quality = 0.0
