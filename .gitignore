@@ -98,5 +98,10 @@ aivitals_engine/outputs/*
 *.mkv
 *.webm
 
-# Keep Sample Files in Repository
-!aivitals_engine/samples/*
+# Keep only light sample files in Repository
+!aivitals_engine/samples/*.csv
+!aivitals_engine/samples/sample_video.mp4
+
+# Exclude heavy videos in samples
+aivitals_engine/samples/*.avi
+aivitals_engine/samples/vid.avi

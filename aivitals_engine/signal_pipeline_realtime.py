@@ -16,7 +16,7 @@ Cách dùng:
 
 import time
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
@@ -25,6 +25,8 @@ from aivitals_engine.face.detector import BaseFaceDetector, SimpleFaceDetector
 from aivitals_engine.quality.sqi import calculate_bvp_quality
 from aivitals_engine.roi.extractor import ROIExtractor
 from aivitals_engine.rppg.base import RPPGMethod
+from aivitals_engine.rppg.chrom import CHROMMethod
+from aivitals_engine.rppg.green import GREENMethod
 from aivitals_engine.rppg.pos import POSMethod
 from aivitals_engine.signal.sliding_buffer import SlidingWindowBuffer
 
@@ -55,6 +57,8 @@ class FrameResult:
         bbox:           Bounding box mặt đã làm mịn (x, y, w, h) → Quang (khung camera).
         frame_count:    Tổng frame đã xử lý từ khi khởi tạo.
         artifact_count: Tổng frame bị loại do artifact detection.
+        method_name:    Tên thuật toán rPPG đang dùng: "GREEN", "CHROM", hoặc "POS".
+        method_version: Phiên bản thuật toán, ví dụ "1.0".
     """
     is_ready:       bool                 = False
     status:         str                  = "BUFFERING"
@@ -67,6 +71,8 @@ class FrameResult:
     bbox:           Optional[tuple]      = None
     frame_count:    int                  = 0
     artifact_count: int                  = 0
+    method_name:    str                  = "POS"
+    method_version: str                  = "1.0"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -78,6 +84,13 @@ class RealtimeSignalPipeline:
     Pipeline xử lý tín hiệu realtime: Frame → Face → ROI → Buffer → rPPG → BVP + SQI.
 
     Mỗi lần gọi `process_frame()` xử lý đúng 1 frame và trả về `FrameResult`.
+
+    Khởi tạo với method tùy chọn:
+        pipeline = RealtimeSignalPipeline(method="CHROM")
+        pipeline = RealtimeSignalPipeline(method="GREEN")
+
+    Hoặc switch method sau khi đã tạo (reset buffer tự động):
+        pipeline.set_method("POS")
     """
 
     _SQI_THRESHOLD = 0.40  # Ngưỡng phân biệt OK / LOW_QUALITY
@@ -93,8 +106,14 @@ class RealtimeSignalPipeline:
         face_detector:      Optional[BaseFaceDetector] = None,
         roi_extractor:      Optional[ROIExtractor]     = None,
         rppg_method:        Optional[RPPGMethod]       = None,
+        method:             Union[str, RPPGMethod]     = "POS",
         config:             Optional[SignalConfig]     = None,
     ) -> None:
+        """
+        Args:
+            method: Tên thuật toán ("GREEN", "CHROM", "POS") hoặc instance RPPGMethod.
+                    Bị ghi đè bởi `rppg_method` nếu `rppg_method` được truyền vào.
+        """
         self._cfg = config if config is not None else SignalConfig()
 
         self._face_detector: BaseFaceDetector = (
@@ -111,24 +130,39 @@ class RealtimeSignalPipeline:
             artifact_threshold = artifact_threshold if artifact_threshold is not None else self._cfg.artifact_threshold,
             time_gap_threshold = self._cfg.time_gap_threshold_sec,
         )
-        _fps   = target_fps if target_fps is not None else self._cfg.fps
-        _low   = lowcut     if lowcut     is not None else self._cfg.low_cutoff_hz
-        _high  = highcut    if highcut    is not None else self._cfg.high_cutoff_hz
-        self._rppg_method: RPPGMethod = (
-            rppg_method if rppg_method is not None
-            else POSMethod(
-                fps=_fps,
-                window_sec=self._cfg.sub_window_sec,
-                lowcut=_low,
-                highcut=_high,
-                detrend_lambda=self._cfg.detrend_lambda,
-            )
-        )
+        self._lowcut  = lowcut  if lowcut  is not None else self._cfg.low_cutoff_hz
+        self._highcut = highcut if highcut is not None else self._cfg.high_cutoff_hz
+        self._target_fps = target_fps if target_fps is not None else self._cfg.fps
+
+        # rppg_method (legacy) takes precedence over method (new param)
+        if rppg_method is not None:
+            self._rppg_method: RPPGMethod = rppg_method
+        else:
+            self._rppg_method = self._build_rppg_method(method)
+
         self._frame_count: int = 0
 
     # ──────────────────────────────────────────────────────────────────────────
     # Public API
     # ──────────────────────────────────────────────────────────────────────────
+
+    def set_method(self, method: Union[str, RPPGMethod]) -> None:
+        """
+        Switch thuật toán rPPG đang dùng và reset toàn bộ pipeline.
+
+        Args:
+            method: Tên thuật toán ("GREEN", "CHROM", "POS") hoặc instance RPPGMethod.
+
+        Raises:
+            ValueError: Nếu tên thuật toán không hợp lệ.
+
+        Ví dụ:
+            pipeline.set_method("CHROM")
+            pipeline.set_method(GREENMethod(fps=30))
+        """
+        self._rppg_method = self._build_rppg_method(method)
+        self.reset()
+
 
     def process_frame(
         self,
@@ -184,6 +218,49 @@ class RealtimeSignalPipeline:
     def is_ready(self) -> bool:
         return self._buffer.is_ready()
 
+    @property
+    def current_method(self) -> str:
+        """Tên thuật toán rPPG đang được dùng: "GREEN", "CHROM", hoặc "POS"."""
+        return self._rppg_method.name
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Private — factory và helper
+    # ──────────────────────────────────────────────────────────────────────────
+
+    def _build_rppg_method(self, method: Union[str, RPPGMethod]) -> RPPGMethod:
+        """
+        Factory tạo RPPGMethod từ tên chuỗi hoặc trả lại instance trực tiếp.
+
+        Args:
+            method: "GREEN", "CHROM", "POS" (case-insensitive) hoặc RPPGMethod instance.
+
+        Returns:
+            RPPGMethod được khởi tạo với config hiện tại.
+
+        Raises:
+            ValueError: Nếu tên không thuộc GREEN / CHROM / POS.
+        """
+        if isinstance(method, RPPGMethod):
+            return method
+
+        name = str(method).upper()
+        kwargs = dict(
+            fps           = self._target_fps,
+            window_sec    = self._cfg.sub_window_sec,
+            lowcut        = self._lowcut,
+            highcut       = self._highcut,
+            detrend_lambda = self._cfg.detrend_lambda,
+        )
+        if name == "POS":
+            return POSMethod(**kwargs)
+        if name == "CHROM":
+            return CHROMMethod(**kwargs)
+        if name == "GREEN":
+            return GREENMethod(**kwargs)
+        raise ValueError(
+            f"Thuật toán '{method}' không hợp lệ. Chọn 'GREEN', 'CHROM', hoặc 'POS'."
+        )
+
     # ──────────────────────────────────────────────────────────────────────────
     # Private — mỗi method làm đúng 1 bước trong pipeline
     # ──────────────────────────────────────────────────────────────────────────
@@ -216,6 +293,8 @@ class RealtimeSignalPipeline:
             progress       = self._buffer.get_progress(),
             frame_count    = self._frame_count,
             artifact_count = self._buffer.artifact_count,
+            method_name    = self._rppg_method.name,
+            method_version = self._rppg_method.version,
         )
 
     def _result_artifact(self, rgb: np.ndarray, bbox: tuple) -> FrameResult:
@@ -228,6 +307,8 @@ class RealtimeSignalPipeline:
             bbox           = bbox,
             frame_count    = self._frame_count,
             artifact_count = self._buffer.artifact_count,
+            method_name    = self._rppg_method.name,
+            method_version = self._rppg_method.version,
         )
 
     def _result_buffering(self, rgb: np.ndarray, bbox: tuple) -> FrameResult:
@@ -240,6 +321,8 @@ class RealtimeSignalPipeline:
             bbox           = bbox,
             frame_count    = self._frame_count,
             artifact_count = self._buffer.artifact_count,
+            method_name    = self._rppg_method.name,
+            method_version = self._rppg_method.version,
         )
 
     def _result_ok(
@@ -252,6 +335,7 @@ class RealtimeSignalPipeline:
         bbox:          tuple,
     ) -> FrameResult:
         status = "OK" if sqi >= self._SQI_THRESHOLD else "LOW_QUALITY"
+        meta   = self._rppg_method.get_metadata()
         return FrameResult(
             is_ready       = True,
             status         = status,
@@ -264,4 +348,7 @@ class RealtimeSignalPipeline:
             bbox           = bbox,
             frame_count    = self._frame_count,
             artifact_count = self._buffer.artifact_count,
+            method_name    = meta["method"],
+            method_version = meta["version"],
         )
+
