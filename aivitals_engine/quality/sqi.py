@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 from scipy import signal
 
@@ -63,3 +64,68 @@ def calculate_bvp_quality(
     snr_val = calculate_bvp_snr(bvp_signal, fs=fs)
     quality = (snr_val - snr_min) / (snr_max - snr_min)
     return float(round(np.clip(quality, 0.0, 1.0), 2))
+
+
+def calculate_periodicity_sqi(
+    bvp_signal: np.ndarray,
+    fs: float = 30.0,
+    min_bpm: float = 45.0,
+    max_bpm: float = 150.0,
+) -> Tuple[float, float]:
+    """
+    Tính chỉ số chất lượng tuần hoàn (Periodicity SQI) dựa trên đỉnh hàm tự tương quan
+    (Autocorrelation Function - ACF) chuẩn hóa trong dải lag tương ứng với nhịp tim sinh lý.
+
+    Thuật toán:
+        1. Trừ trung bình tín hiệu: x_tilde = x - mean(x).
+        2. Tính tự tương quan không trễ: R(0) = sum(x_tilde^2).
+        3. Tự tương quan chuẩn hóa: rho(tau) = R(tau) / R(0).
+        4. Tìm cực đại rho(tau) trong dải lag [tau_min, tau_max] ứng với [min_bpm, max_bpm]:
+           tau_min = floor(60 * fs / max_bpm)
+           tau_max = ceil(60 * fs / min_bpm)
+        5. Điểm chuẩn hóa score = clip(raw_peak, 0.0, 1.0).
+
+    Args:
+        bvp_signal: Tín hiệu sóng BVP 1D.
+        fs: Tần số lấy mẫu (FPS), mặc định 30.0 Hz.
+        min_bpm: Giới hạn dưới tần số nhịp tim sinh lý (BPM), mặc định 45.0 (lag ~1.33 s).
+        max_bpm: Giới hạn trên tần số nhịp tim sinh lý (BPM), mặc định 150.0 (lag ~0.40 s).
+
+    Returns:
+        (score, raw_peak):
+            score: Điểm chất lượng tuần hoàn trong đoạn [0.0, 1.0] (làm tròn 2 chữ số thập phân).
+            raw_peak: Giá trị đỉnh ACF chuẩn hóa thô trong đoạn [-1.0, 1.0] (làm tròn 4 chữ số thập phân).
+
+    CẢNH BÁO / GIỚI HẠN ĐÃ XÁC MINH BẰNG THỰC NGHIỆM:
+        Chỉ số này KHÔNG phân biệt được sóng mạch sinh học thật với các nguồn nhiễu tuần hoàn
+        đơn tần (như sóng sin nhân tạo 1.2 Hz phát sinh từ chuyển động gật đầu nhịp nhàng hoặc
+        đèn chớp chu kỳ cố định), vì mọi dao động có tính tuần hoàn đều có đỉnh ACF rất cao (~0.9 - 1.0).
+    """
+    sig = np.asarray(bvp_signal, dtype=np.float64).flatten()
+    if len(sig) < 16 or np.all(sig == 0):
+        return 0.0, 0.0
+
+    tau_min = int(np.floor(fs * 60.0 / max_bpm))
+    tau_max = int(np.ceil(fs * 60.0 / min_bpm))
+    tau_max = min(tau_max, len(sig) - 1)
+
+    if tau_min > tau_max or tau_min >= len(sig):
+        return 0.0, 0.0
+
+    x = sig - np.mean(sig)
+    var = np.sum(x ** 2)
+    if var < 1e-12:
+        return 0.0, 0.0
+
+    r = signal.correlate(x, x, mode="full")
+    r = r[len(x) - 1 :]  # Các độ trễ không âm: tau = 0, 1, ..., N - 1
+    rho = r / var
+
+    window = rho[tau_min : tau_max + 1]
+    if len(window) == 0:
+        return 0.0, 0.0
+
+    raw_peak = float(np.max(window))
+    score = float(round(np.clip(raw_peak, 0.0, 1.0), 2))
+    return score, float(round(raw_peak, 4))
+
