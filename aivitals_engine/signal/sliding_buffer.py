@@ -15,7 +15,7 @@ Vị trí trong pipeline:
 
 import time
 from collections import deque
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 
@@ -60,17 +60,34 @@ class SlidingWindowBuffer:
         self._timestamps:  deque = deque(maxlen=max_frames)
         self._artifact_count: int = 0
 
+        # Per-region RGB buffers (synchronized with _rgb_buffer).
+        # Populated only when sub_rgbs is passed to push(); stay empty otherwise.
+        self._forehead_buf:    deque = deque(maxlen=max_frames)
+        self._left_cheek_buf:  deque = deque(maxlen=max_frames)
+        self._right_cheek_buf: deque = deque(maxlen=max_frames)
+
     # ──────────────────────────────────────────────────────────────────────────
     # Public API
     # ──────────────────────────────────────────────────────────────────────────
 
-    def push(self, rgb: np.ndarray, timestamp: Optional[float] = None) -> bool:
+    def push(
+        self,
+        rgb:       np.ndarray,
+        timestamp: Optional[float] = None,
+        sub_rgbs:  Any             = None,
+    ) -> bool:
         """
         Đẩy 1 frame RGB vào buffer.
 
         Args:
             rgb:       Vector [R, G, B] trung bình của ROI, shape (3,).
             timestamp: Thời điểm thực tế của frame (giây). None → perf_counter().
+            sub_rgbs:  Optional SubROIResult-like object (attributes: forehead,
+                       left_cheek, right_cheek — each np.ndarray (3,)).
+                       When provided, the three per-region vectors are pushed
+                       atomically with rgb: accepted together, rejected together.
+                       Pass None (default) to leave sub-ROI buffers untouched
+                       (backward-compatible mode).
 
         Returns:
             True nếu frame được chấp nhận, False nếu bị loại do artifact.
@@ -87,6 +104,13 @@ class SlidingWindowBuffer:
 
         self._rgb_buffer.append(rgb_arr)
         self._timestamps.append(ts)
+
+        # Append per-region vectors atomically (same accept/reject decision).
+        if sub_rgbs is not None:
+            self._forehead_buf.append(np.asarray(sub_rgbs.forehead,    dtype=np.float64))
+            self._left_cheek_buf.append(np.asarray(sub_rgbs.left_cheek,  dtype=np.float64))
+            self._right_cheek_buf.append(np.asarray(sub_rgbs.right_cheek, dtype=np.float64))
+
         return True
 
     def is_ready(self) -> bool:
@@ -127,6 +151,30 @@ class SlidingWindowBuffer:
             np.array(self._timestamps, dtype=np.float64),
         )
 
+    def get_sub_roi_raw_window(
+        self,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Return per-region raw RGB windows (forehead, left_cheek, right_cheek).
+
+        Each array has shape (N, 3), where N equals the current main buffer
+        size when sub_rgbs have been pushed consistently.  Returns shape (0, 3)
+        for any region that has never received data.
+
+        Returns:
+            Tuple (forehead, left_cheek, right_cheek) — each np.ndarray (N, 3).
+        """
+        def _to_arr(buf: deque) -> np.ndarray:
+            if len(buf) == 0:
+                return np.zeros((0, 3), dtype=np.float64)
+            return np.array(list(buf), dtype=np.float64)
+
+        return (
+            _to_arr(self._forehead_buf),
+            _to_arr(self._left_cheek_buf),
+            _to_arr(self._right_cheek_buf),
+        )
+
     def get_resampled_window(self) -> Tuple[np.ndarray, float]:
         """
         Lấy cửa sổ RGB đã nội suy về FPS cố định, **giữ nguyên thành phần DC**.
@@ -158,6 +206,10 @@ class SlidingWindowBuffer:
         self._rgb_buffer.clear()
         self._timestamps.clear()
         self._artifact_count = 0
+        # Sub-ROI buffers must be cleared atomically with the main buffer.
+        self._forehead_buf.clear()
+        self._left_cheek_buf.clear()
+        self._right_cheek_buf.clear()
 
     @property
     def size(self) -> int:

@@ -23,7 +23,7 @@ import numpy as np
 from aivitals_engine.config.settings import SignalConfig
 from aivitals_engine.face.detector import BaseFaceDetector, SimpleFaceDetector
 from aivitals_engine.quality.sqi import calculate_bvp_quality
-from aivitals_engine.roi.extractor import ROIExtractor
+from aivitals_engine.roi.extractor import ROIExtractor, SubROIResult
 from aivitals_engine.rppg.base import RPPGMethod
 from aivitals_engine.rppg.chrom import CHROMMethod
 from aivitals_engine.rppg.green import GREENMethod
@@ -177,9 +177,10 @@ class RealtimeSignalPipeline:
         if bbox is None:
             return self._result_face_lost()
 
-        rgb = self._extract_rgb(frame, bbox)
+        rgb      = self._extract_rgb(frame, bbox)
+        sub_rgbs = self._extract_sub_roi_rgbs(frame, bbox)  # per-region (new)
 
-        if not self._push_to_buffer(rgb, ts):
+        if not self._push_to_buffer(rgb, ts, sub_rgbs=sub_rgbs):
             return self._result_artifact(rgb, bbox)
 
         if not self._buffer.is_ready():
@@ -222,6 +223,19 @@ class RealtimeSignalPipeline:
     def current_method(self) -> str:
         """Tên thuật toán rPPG đang được dùng: "GREEN", "CHROM", hoặc "POS"."""
         return self._rppg_method.name
+
+    def get_sub_roi_window(
+        self,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Return per-region raw RGB windows currently held in the buffer.
+
+        Returns the same triple as SlidingWindowBuffer.get_sub_roi_raw_window():
+        (forehead, left_cheek, right_cheek), each shape (N, 3).
+        N equals buffer.size when sub-ROIs have been pushed consistently.
+        Shape (0, 3) if no sub-ROI data has been collected yet.
+        """
+        return self._buffer.get_sub_roi_raw_window()
 
     # ──────────────────────────────────────────────────────────────────────────
     # Private — factory và helper
@@ -271,8 +285,17 @@ class RealtimeSignalPipeline:
     def _extract_rgb(self, frame: np.ndarray, bbox: tuple) -> np.ndarray:
         return self._roi_extractor.extract_mean_rgb(frame, bbox)
 
-    def _push_to_buffer(self, rgb: np.ndarray, ts: float) -> bool:
-        return self._buffer.push(rgb, timestamp=ts)
+    def _extract_sub_roi_rgbs(self, frame: np.ndarray, bbox: tuple) -> SubROIResult:
+        """Return per-region RGB vectors (forehead, left_cheek, right_cheek)."""
+        return self._roi_extractor.extract_sub_roi_rgbs(frame, bbox)
+
+    def _push_to_buffer(
+        self,
+        rgb:      np.ndarray,
+        ts:       float,
+        sub_rgbs: Optional[SubROIResult] = None,
+    ) -> bool:
+        return self._buffer.push(rgb, timestamp=ts, sub_rgbs=sub_rgbs)
 
     def _run_rppg(self, rgb_resampled: np.ndarray, effective_fps: float) -> np.ndarray:
         self._rppg_method.fps = effective_fps
