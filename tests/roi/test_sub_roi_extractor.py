@@ -129,6 +129,77 @@ class TestSubROIExtraction(unittest.TestCase):
         self.assertTrue(np.all(grand_mean > 0), "grand mean should be non-zero")
         self.assertTrue(np.all(mean_rgb   > 0), "extract_mean_rgb should be non-zero")
 
+    # ------------------------------------------------------------------
+    # 7. Weighted mean matches extract_mean_rgb (tolerance <= 1e-12)
+    # ------------------------------------------------------------------
+
+    def test_pixel_weighted_mean_matches_extract_mean_rgb(self):
+        """
+        Weighted average of per-ROI means by their respective pixel counts
+        MUST numerically match extract_mean_rgb() within floating-point tolerance
+        delta <= 1e-12, because extract_mean_rgb() is mathematically the grand
+        average of all valid pixels across all 3 sub-ROIs.
+        """
+        rng = np.random.default_rng(100)
+        for _ in range(20):
+            frame = rng.integers(0, 256, (250, 250, 3), dtype=np.uint8)
+            bbox = (25, 25, 150, 150)
+            
+            sub = self.extractor.extract_sub_roi_rgbs(frame, bbox)
+            mean_rgb = self.extractor.extract_mean_rgb(frame, bbox)
+            
+            nf = sub.pixel_counts["forehead"]
+            nl = sub.pixel_counts["left_cheek"]
+            nr = sub.pixel_counts["right_cheek"]
+            total_n = nf + nl + nr
+            
+            self.assertGreater(total_n, 0)
+            weighted_mean = (nf * sub.forehead + nl * sub.left_cheek + nr * sub.right_cheek) / total_n
+            
+            # Tolerance: delta = 1e-12
+            np.testing.assert_allclose(
+                weighted_mean, mean_rgb, atol=1e-12, rtol=1e-12,
+                err_msg="Pixel-weighted mean of sub-ROIs must match extract_mean_rgb within 1e-12"
+            )
+
+    # ------------------------------------------------------------------
+    # 8. Zero valid pixels in a region (disabled config or None input)
+    # ------------------------------------------------------------------
+
+    def test_zero_pixel_sub_roi_handling(self):
+        """
+        When a sub-ROI is disabled (e.g. crop_forehead=False in ROIConfig)
+        or when inputs are None:
+        - The affected region has pixel_counts == 0
+        - Its vector is np.zeros(3)
+        - Remaining enabled regions still have valid pixels and non-zero vectors.
+        """
+        from aivitals_engine.config.settings import ROIConfig
+
+        ext_no_fore = ROIExtractor(config=ROIConfig(crop_forehead=False, crop_cheeks=True))
+        sub = ext_no_fore.extract_sub_roi_rgbs(self.frame, self.bbox)
+
+        # Forehead has exactly 0 pixels and zeros(3)
+        self.assertEqual(sub.pixel_counts["forehead"], 0)
+        np.testing.assert_array_equal(sub.forehead, np.zeros(3))
+
+        # Cheeks have positive pixel counts and valid values
+        self.assertGreater(sub.pixel_counts["left_cheek"], 0)
+        self.assertGreater(sub.pixel_counts["right_cheek"], 0)
+        self.assertFalse(np.all(sub.left_cheek == 0))
+        self.assertFalse(np.all(sub.right_cheek == 0))
+
+        # When frame is None
+        sub_none = self.extractor.extract_sub_roi_rgbs(None, self.bbox)
+        self.assertEqual(sub_none.pixel_counts["forehead"], 0)
+        self.assertEqual(sub_none.pixel_counts["left_cheek"], 0)
+        self.assertEqual(sub_none.pixel_counts["right_cheek"], 0)
+        np.testing.assert_array_equal(sub_none.forehead, np.zeros(3))
+        np.testing.assert_array_equal(sub_none.left_cheek, np.zeros(3))
+        np.testing.assert_array_equal(sub_none.right_cheek, np.zeros(3))
+
 
 if __name__ == "__main__":
     unittest.main()
+
+

@@ -170,6 +170,41 @@ class TestSubROIBuffer(unittest.TestCase):
         self.assertEqual(left.shape,  (0, 3))
         self.assertEqual(right.shape, (0, 3))
 
+    # ------------------------------------------------------------------
+    # 6. Zero-pixel sub-ROI frame maintains exact buffer synchronization
+    # ------------------------------------------------------------------
+
+    def test_zero_pixel_sub_roi_synchronization(self):
+        """
+        When a frame has 0 pixels in one sub-ROI (e.g. forehead = zeros(3)
+        due to face partly out of frame), the 4 buffers remain strictly
+        synchronized in length.
+        """
+        buf = SlidingWindowBuffer(
+            window_sec=5.0, min_sec=1.0, target_fps=30.0, artifact_threshold=None
+        )
+        # 10 normal frames
+        for i in range(10):
+            buf.push(BASE_RGB, timestamp=i * 0.033, sub_rgbs=_make_sub(1.0))
+
+        # 1 frame where forehead has 0 pixels (zeros(3)), cheeks have normal values
+        zero_forehead_sub = SimpleNamespace(
+            forehead=np.zeros(3, dtype=np.float64),
+            left_cheek=BASE_RGB.copy(),
+            right_cheek=BASE_RGB.copy(),
+        )
+        accepted = buf.push(BASE_RGB, timestamp=10 * 0.033, sub_rgbs=zero_forehead_sub)
+        self.assertTrue(accepted)
+
+        fore, left, right = buf.get_sub_roi_raw_window()
+        self.assertEqual(buf.size, 11)
+        self.assertEqual(len(fore),  11)
+        self.assertEqual(len(left),  11)
+        self.assertEqual(len(right), 11)
+        np.testing.assert_array_equal(fore[-1], np.zeros(3))
+        np.testing.assert_array_equal(left[-1], BASE_RGB)
+
 
 if __name__ == "__main__":
     unittest.main()
+
