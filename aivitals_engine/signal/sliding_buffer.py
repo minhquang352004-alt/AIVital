@@ -65,6 +65,8 @@ class SlidingWindowBuffer:
         self._forehead_buf:    deque = deque(maxlen=max_frames)
         self._left_cheek_buf:  deque = deque(maxlen=max_frames)
         self._right_cheek_buf: deque = deque(maxlen=max_frames)
+        
+        self._bbox_buf:        deque = deque(maxlen=max_frames)
 
     # ──────────────────────────────────────────────────────────────────────────
     # Public API
@@ -75,6 +77,7 @@ class SlidingWindowBuffer:
         rgb:       np.ndarray,
         timestamp: Optional[float] = None,
         sub_rgbs:  Any             = None,
+        bbox:      Optional[tuple] = None,
     ) -> bool:
         """
         Đẩy 1 frame RGB vào buffer.
@@ -104,6 +107,11 @@ class SlidingWindowBuffer:
 
         self._rgb_buffer.append(rgb_arr)
         self._timestamps.append(ts)
+        
+        if bbox is not None:
+            self._bbox_buf.append(np.asarray(bbox, dtype=np.float64))
+        else:
+            self._bbox_buf.append(np.array([0, 0, 0, 0], dtype=np.float64))
 
         # Append per-region vectors atomically (same accept/reject decision).
         if sub_rgbs is not None:
@@ -175,6 +183,11 @@ class SlidingWindowBuffer:
             _to_arr(self._right_cheek_buf),
         )
 
+    def get_bbox_window(self) -> np.ndarray:
+        if len(self._bbox_buf) == 0:
+            return np.zeros((0, 4), dtype=np.float64)
+        return np.array(list(self._bbox_buf), dtype=np.float64)
+
     def get_resampled_window(self) -> Tuple[np.ndarray, float]:
         """
         Lấy cửa sổ RGB đã nội suy về FPS cố định, **giữ nguyên thành phần DC**.
@@ -210,6 +223,7 @@ class SlidingWindowBuffer:
         self._forehead_buf.clear()
         self._left_cheek_buf.clear()
         self._right_cheek_buf.clear()
+        self._bbox_buf.clear()
 
     @property
     def size(self) -> int:

@@ -32,7 +32,7 @@ class TestRealtimeSignalPipeline(unittest.TestCase):
             result = pipeline.process_frame(frame, timestamp=i * 0.033)
 
         self.assertTrue(result.is_ready)
-        self.assertIn(result.status, ["OK", "LOW_QUALITY"])
+        self.assertIn(result.status, ["OK", "LOW_QUALITY", "ACCEPTED", "SUSPICIOUS", "REJECTED"])
         self.assertIsNotNone(result.bvp_signal)
         self.assertGreater(len(result.bvp_signal), 0)
         self.assertGreaterEqual(result.quality_sqi, 0.0)

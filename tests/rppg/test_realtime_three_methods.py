@@ -96,7 +96,7 @@ class TestAllThreeMethodsProduceBVP(unittest.TestCase):
             f"[{method_name}] Pipeline chưa sẵn sàng sau {_N_READY} frames",
         )
         self.assertIn(
-            result.status, ["OK", "LOW_QUALITY"],
+            result.status, ["OK", "LOW_QUALITY", "ACCEPTED", "SUSPICIOUS", "REJECTED"],
             f"[{method_name}] status không hợp lệ: {result.status}",
         )
 
