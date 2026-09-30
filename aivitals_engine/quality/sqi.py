@@ -129,3 +129,50 @@ def calculate_periodicity_sqi(
     score = float(round(np.clip(raw_peak, 0.0, 1.0), 2))
     return score, float(round(raw_peak, 4))
 
+def calculate_cross_roi_sqi(sub_rgbs: dict, fs: float) -> dict:
+    """
+    Tính chỉ số đồng thuận giữa các vùng con (Cross-ROI SQI).
+    Sử dụng thuật toán rPPG gốc (POS) trên từng vùng con,
+    và tính hệ số tương quan Pearson giữa 3 cặp: Trán-MáTrái, Trán-MáPhải, MáTrái-MáPhải.
+    
+    Args:
+        sub_rgbs: Dictionary chứa tín hiệu RGB của từng vùng ('forehead', 'left_cheek', 'right_cheek').
+        fs: Tần số lấy mẫu (Hz).
+        
+    Returns:
+        Dict chứa r_forehead_left, r_forehead_right, r_left_right, r_mean, r_min.
+    """
+    from aivitals_engine.rppg.pos import POSMethod
+    pos = POSMethod(fps=fs)
+    
+    def process_roi(rgb):
+        if len(rgb) == 0 or np.all(rgb == 0):
+            return np.zeros(len(rgb)) if len(rgb) > 0 else np.zeros(1)
+        return pos.process(rgb)
+        
+    p_f = process_roi(sub_rgbs.get('forehead', np.array([])))
+    p_l = process_roi(sub_rgbs.get('left_cheek', np.array([])))
+    p_r = process_roi(sub_rgbs.get('right_cheek', np.array([])))
+    
+    def calc_pearson(x, y):
+        if len(x) < 2 or len(y) < 2 or len(x) != len(y):
+            return 0.0
+        if np.std(x) < 1e-7 or np.std(y) < 1e-7:
+            return 0.0
+        return float(np.corrcoef(x, y)[0, 1])
+        
+    r_fl = calc_pearson(p_f, p_l)
+    r_fr = calc_pearson(p_f, p_r)
+    r_lr = calc_pearson(p_l, p_r)
+    
+    r_mean = float(np.mean([r_fl, r_fr, r_lr]))
+    r_min = float(np.min([r_fl, r_fr, r_lr]))
+    
+    return {
+        'r_forehead_left': r_fl,
+        'r_forehead_right': r_fr,
+        'r_left_right': r_lr,
+        'r_mean': r_mean,
+        'r_min': r_min
+    }
+
