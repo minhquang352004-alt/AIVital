@@ -23,7 +23,7 @@ import numpy as np
 from aivitals_engine.config.settings import SignalConfig
 from aivitals_engine.face.detector import BaseFaceDetector, SimpleFaceDetector
 from aivitals_engine.quality.sqi import calculate_bvp_quality
-from aivitals_engine.roi.extractor import ROIExtractor
+from aivitals_engine.roi.extractor import ROIExtractor, SubROIResult
 from aivitals_engine.rppg.base import RPPGMethod
 from aivitals_engine.rppg.chrom import CHROMMethod
 from aivitals_engine.rppg.green import GREENMethod
@@ -73,6 +73,12 @@ class FrameResult:
     artifact_count: int                  = 0
     method_name:    str                  = "POS"
     method_version: str                  = "1.0"
+
+    # Quality Gate (Week 4/5/6/7)
+    quality_metrics: dict = None
+    quality_state:  str = None
+    quality_reasons: list = None
+
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -134,6 +140,13 @@ class RealtimeSignalPipeline:
         self._highcut = highcut if highcut is not None else self._cfg.high_cutoff_hz
         self._target_fps = target_fps if target_fps is not None else self._cfg.fps
 
+        from collections import deque
+        from aivitals_engine.quality.gate import QualityGate
+        self._bbox_buffer = deque(maxlen=self._buffer._rgb_buffer.maxlen)
+        self._quality_gate = QualityGate()
+        self._last_sqi_calc_time = 0.0
+        self._cached_metrics = {}
+
         # rppg_method (legacy) takes precedence over method (new param)
         if rppg_method is not None:
             self._rppg_method: RPPGMethod = rppg_method
@@ -177,9 +190,10 @@ class RealtimeSignalPipeline:
         if bbox is None:
             return self._result_face_lost()
 
-        rgb = self._extract_rgb(frame, bbox)
+        rgb      = self._extract_rgb(frame, bbox)
+        sub_rgbs = self._extract_sub_roi_rgbs(frame, bbox)  # per-region (new)
 
-        if not self._push_to_buffer(rgb, ts):
+        if not self._push_to_buffer(rgb, ts, sub_rgbs=sub_rgbs, bbox=bbox):
             return self._result_artifact(rgb, bbox)
 
         if not self._buffer.is_ready():
@@ -189,7 +203,56 @@ class RealtimeSignalPipeline:
         bvp = self._run_rppg(rgb_resampled, effective_fps)
         sqi = self._score_quality(bvp, effective_fps)
 
-        return self._result_ok(bvp, sqi, effective_fps, rgb_resampled, rgb, bbox)
+        # Advanced SQI calculation (throttle to ~1s)
+        current_time = time.perf_counter()
+        if (current_time - self._last_sqi_calc_time) >= 1.0:
+            from aivitals_engine.quality.sqi import calculate_periodicity_sqi, calculate_cross_roi_sqi
+            from aivitals_engine.quality.motion import calculate_motion_sqi
+            
+            # Periodicity
+            periodicity, _ = calculate_periodicity_sqi(bvp, effective_fps)
+            
+            # Cross-ROI
+            sub_raw = self._buffer.get_sub_roi_raw_window()
+            sub_rgbs_dict = {
+                'forehead': sub_raw[0],
+                'left_cheek': sub_raw[1],
+                'right_cheek': sub_raw[2]
+            }
+            cross_roi = calculate_cross_roi_sqi(sub_rgbs_dict, effective_fps)
+            
+            # Motion
+            bbox_window = self._buffer.get_bbox_window()
+            motion = calculate_motion_sqi(bbox_window, effective_fps)
+            
+            # Artifact ratio
+            total_frames = self._buffer.size + self._buffer.artifact_count
+            artifact_ratio = self._buffer.artifact_count / total_frames if total_frames > 0 else 0.0
+            
+            metrics = {
+                'window_len': len(bvp),
+                'min_window_len': self._cfg.min_window_sec * effective_fps,
+                'snr': sqi,
+                'periodicity': periodicity,
+                'r_mean': cross_roi.get('r_mean', 1.0),
+                'motion_score': motion.get('motion_score', 0.0),
+                'artifact_ratio': artifact_ratio
+            }
+            
+            state, reasons = self._quality_gate.evaluate(metrics, current_time)
+            
+            self._cached_metrics = {
+                'metrics': metrics,
+                'state': state.value,
+                'reasons': [r.value for r in reasons]
+            }
+            self._last_sqi_calc_time = current_time
+
+        c_metrics = self._cached_metrics.get('metrics', {})
+        c_state = self._cached_metrics.get('state', "ACCEPTED")
+        c_reasons = self._cached_metrics.get('reasons', [])
+
+        return self._result_ok(bvp, sqi, effective_fps, rgb_resampled, rgb, bbox, c_metrics, c_state, c_reasons)
 
     def reset(self) -> None:
         """Reset toàn bộ pipeline về trạng thái ban đầu."""
@@ -222,6 +285,19 @@ class RealtimeSignalPipeline:
     def current_method(self) -> str:
         """Tên thuật toán rPPG đang được dùng: "GREEN", "CHROM", hoặc "POS"."""
         return self._rppg_method.name
+
+    def get_sub_roi_window(
+        self,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Return per-region raw RGB windows currently held in the buffer.
+
+        Returns the same triple as SlidingWindowBuffer.get_sub_roi_raw_window():
+        (forehead, left_cheek, right_cheek), each shape (N, 3).
+        N equals buffer.size when sub-ROIs have been pushed consistently.
+        Shape (0, 3) if no sub-ROI data has been collected yet.
+        """
+        return self._buffer.get_sub_roi_raw_window()
 
     # ──────────────────────────────────────────────────────────────────────────
     # Private — factory và helper
@@ -271,8 +347,18 @@ class RealtimeSignalPipeline:
     def _extract_rgb(self, frame: np.ndarray, bbox: tuple) -> np.ndarray:
         return self._roi_extractor.extract_mean_rgb(frame, bbox)
 
-    def _push_to_buffer(self, rgb: np.ndarray, ts: float) -> bool:
-        return self._buffer.push(rgb, timestamp=ts)
+    def _extract_sub_roi_rgbs(self, frame: np.ndarray, bbox: tuple) -> SubROIResult:
+        """Return per-region RGB vectors (forehead, left_cheek, right_cheek)."""
+        return self._roi_extractor.extract_sub_roi_rgbs(frame, bbox)
+
+    def _push_to_buffer(
+        self,
+        rgb:      np.ndarray,
+        ts:       float,
+        sub_rgbs: Optional[SubROIResult] = None,
+        bbox:     Optional[tuple] = None,
+    ) -> bool:
+        return self._buffer.push(rgb, timestamp=ts, sub_rgbs=sub_rgbs, bbox=bbox)
 
     def _run_rppg(self, rgb_resampled: np.ndarray, effective_fps: float) -> np.ndarray:
         self._rppg_method.fps = effective_fps
@@ -333,6 +419,9 @@ class RealtimeSignalPipeline:
         rgb_resampled: np.ndarray,
         raw_rgb:       np.ndarray,
         bbox:          tuple,
+        quality_metrics: dict = None,
+        quality_state:  str = None,
+        quality_reasons: list = None,
     ) -> FrameResult:
         status = "OK" if sqi >= self._SQI_THRESHOLD else "LOW_QUALITY"
         meta   = self._rppg_method.get_metadata()
@@ -348,7 +437,9 @@ class RealtimeSignalPipeline:
             bbox           = bbox,
             frame_count    = self._frame_count,
             artifact_count = self._buffer.artifact_count,
-            method_name    = meta["method"],
-            method_version = meta["version"],
+            method_name    = meta.get("method", self._rppg_method.name),
+            method_version = meta.get("version", self._rppg_method.version),
+            quality_metrics= quality_metrics,
+            quality_state  = quality_state,
+            quality_reasons= quality_reasons,
         )
-
