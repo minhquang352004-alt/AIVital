@@ -23,6 +23,11 @@ class SignalConfig:
     artifact_threshold:      float = 3.5    # Ngưỡng phát hiện đột biến (n × std)
     time_gap_threshold_sec:  float = 0.5    # Ngưỡng phát hiện đứt đoạn thời gian (giây)
 
+    # ── SQI & Quality Gate (Tuần 4) ───────────────────────────────────────────
+    periodicity_min_bpm:     float = 45.0   # Tần số nhịp tim tối thiểu để xét lag ACF (BPM)
+    periodicity_max_bpm:     float = 150.0  # Tần số nhịp tim tối đa để xét lag ACF (BPM)
+    periodicity_threshold:   float = 0.46   # UNCALIBRATED, chưa hiệu chỉnh trên dữ liệu thật (chặn dưới p99 FPR trên nhiễu trắng cửa sổ 8s)
+
 
 @dataclass
 class ROIConfig:
