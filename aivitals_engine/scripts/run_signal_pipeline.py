@@ -148,11 +148,12 @@ def run_pipeline_on_video(
                 stats["frames_ok"] += 1
             elif result.status == "LOW_QUALITY":
                 stats["frames_low_q"] += 1
-            elif result.status == "ACCEPTED":
+                
+            if result.quality_state == "ACCEPTED":
                 stats["frames_accepted"] += 1
-            elif result.status == "SUSPICIOUS":
+            elif result.quality_state == "SUSPICIOUS":
                 stats["frames_suspicious"] += 1
-            elif result.status == "REJECTED":
+            elif result.quality_state == "REJECTED":
                 stats["frames_rejected"] += 1
 
         # ── In progress mỗi giây ──────────────────────────────────────────────

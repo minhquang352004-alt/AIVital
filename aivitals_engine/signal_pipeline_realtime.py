@@ -423,7 +423,7 @@ class RealtimeSignalPipeline:
         quality_state:  str = None,
         quality_reasons: list = None,
     ) -> FrameResult:
-        status = quality_state if quality_state is not None else ("OK" if sqi >= self._SQI_THRESHOLD else "LOW_QUALITY")
+        status = "OK" if sqi >= self._SQI_THRESHOLD else "LOW_QUALITY"
         meta   = self._rppg_method.get_metadata()
         return FrameResult(
             is_ready       = True,
