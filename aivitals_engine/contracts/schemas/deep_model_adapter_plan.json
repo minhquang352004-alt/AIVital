@@ -1,0 +1,76 @@
+[
+  {
+    "name": "tscan",
+    "architecture": "TS-CAN (Temporal Shift Convolutional Attention Network)",
+    "representations": [
+      "diff_normalized",
+      "standardized"
+    ],
+    "layout": "frame_stack",
+    "output": "pulse_derivative",
+    "frame_size": 72,
+    "chunk_frames": 180,
+    "frame_depth": 10,
+    "target_fps": 30.0,
+    "compute_profile": "CNN 2D + temporal shift, chạy được CPU, GPU giúp giảm latency",
+    "integration_tier": "realtime_candidate",
+    "integration_priority": 1,
+    "rationale": "Kiến trúc thiết kế cho on-device, xử lý theo frame nên hợp với sliding window realtime",
+    "reference": "Liu et al., Multi-Task Temporal Shift Attention Networks for On-Device Contactless Vitals Measurement, NeurIPS 2020"
+  },
+  {
+    "name": "efficientphys",
+    "architecture": "EfficientPhys (convolutional)",
+    "representations": [
+      "standardized"
+    ],
+    "layout": "frame_stack",
+    "output": "pulse_derivative",
+    "frame_size": 72,
+    "chunk_frames": 180,
+    "frame_depth": 10,
+    "target_fps": 30.0,
+    "compute_profile": "CNN 2D nhẹ, không cần tiền xử lý diff riêng",
+    "integration_tier": "realtime_candidate",
+    "integration_priority": 2,
+    "rationale": "Tiền xử lý đơn giản nhất nên dễ ghép với ROI của Khang, cần benchmark latency để xác nhận",
+    "reference": "Liu et al., EfficientPhys: Enabling Simple, Fast and Accurate Camera-Based Cardiac Measurement, WACV 2023"
+  },
+  {
+    "name": "deepphys",
+    "architecture": "DeepPhys (motion + appearance attention)",
+    "representations": [
+      "diff_normalized",
+      "standardized"
+    ],
+    "layout": "frame_stack",
+    "output": "pulse_derivative",
+    "frame_size": 72,
+    "chunk_frames": 180,
+    "frame_depth": null,
+    "target_fps": 30.0,
+    "compute_profile": "CNN 2D hai nhánh, chạy được CPU",
+    "integration_tier": "benchmark_only",
+    "integration_priority": 3,
+    "rationale": "Baseline deep kinh điển, dùng làm mốc so sánh; TS-CAN là bản cải tiến trực tiếp",
+    "reference": "Chen & McDuff, DeepPhys: Video-Based Physiological Measurement Using Convolutional Attention Networks, ECCV 2018"
+  },
+  {
+    "name": "physnet",
+    "architecture": "PhysNet (3D CNN spatio-temporal)",
+    "representations": [
+      "diff_normalized"
+    ],
+    "layout": "video_volume",
+    "output": "pulse",
+    "frame_size": 72,
+    "chunk_frames": 128,
+    "frame_depth": null,
+    "target_fps": 30.0,
+    "compute_profile": "3D CNN, tốn tài nguyên hơn, ưu tiên GPU",
+    "integration_tier": "benchmark_only",
+    "integration_priority": 4,
+    "rationale": "Xử lý cả khối video nên độ trễ theo chunk lớn, phù hợp benchmark offline hơn realtime",
+    "reference": "Yu et al., Remote Photoplethysmograph Signal Measurement from Facial Videos Using Spatio-Temporal Networks, BMVC 2019"
+  }
+]

@@ -1,0 +1,351 @@
+{
+  "$defs": {
+    "AlgorithmInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "AlgorithmInfo",
+      "type": "object"
+    },
+    "IssueSeverity": {
+      "enum": [
+        "WARNING",
+        "ERROR"
+      ],
+      "title": "IssueSeverity",
+      "type": "string"
+    },
+    "MeasurementWindow": {
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "format": "date-time",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "format": "date-time",
+          "title": "End",
+          "type": "string"
+        },
+        "duration_seconds": {
+          "minimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "duration_seconds"
+      ],
+      "title": "MeasurementWindow",
+      "type": "object"
+    },
+    "ModelInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "checksum_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checksum Sha256"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "ModelInfo",
+      "type": "object"
+    },
+    "ResultStatus": {
+      "enum": [
+        "OK",
+        "BAD",
+        "INVALID"
+      ],
+      "title": "ResultStatus",
+      "type": "string"
+    },
+    "SignalSource": {
+      "additionalProperties": false,
+      "properties": {
+        "rppg_method": {
+          "minLength": 1,
+          "title": "Rppg Method",
+          "type": "string"
+        },
+        "rppg_method_version": {
+          "minLength": 1,
+          "title": "Rppg Method Version",
+          "type": "string"
+        },
+        "sampling_rate_hz": {
+          "exclusiveMinimum": 0,
+          "title": "Sampling Rate Hz",
+          "type": "number"
+        },
+        "signal_quality": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Signal Quality"
+        },
+        "missing_ratio": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Missing Ratio",
+          "type": "number"
+        }
+      },
+      "required": [
+        "rppg_method",
+        "rppg_method_version",
+        "sampling_rate_hz",
+        "missing_ratio"
+      ],
+      "title": "SignalSource",
+      "type": "object"
+    },
+    "ValidationIssue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/IssueSeverity"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "details": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": "Details",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "message"
+      ],
+      "title": "ValidationIssue",
+      "type": "object"
+    },
+    "VitalCode": {
+      "enum": [
+        "heart_rate",
+        "hrv_rmssd",
+        "hrv_sdnn",
+        "hrv_mean_ibi",
+        "respiratory_rate"
+      ],
+      "title": "VitalCode",
+      "type": "string"
+    },
+    "VitalValue": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/VitalCode"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "window": {
+          "$ref": "#/$defs/MeasurementWindow"
+        },
+        "quality": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Quality",
+          "type": "number"
+        },
+        "confidence": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Confidence",
+          "type": "number"
+        },
+        "status": {
+          "$ref": "#/$defs/ResultStatus"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/ValidationIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "algorithm": {
+          "$ref": "#/$defs/AlgorithmInfo"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ModelInfo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "code",
+        "value",
+        "unit",
+        "timestamp",
+        "window",
+        "quality",
+        "confidence",
+        "status",
+        "algorithm"
+      ],
+      "title": "VitalValue",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0",
+      "default": "1.0.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "result_id": {
+      "title": "Result Id",
+      "type": "string"
+    },
+    "session_id": {
+      "minLength": 1,
+      "title": "Session Id",
+      "type": "string"
+    },
+    "engine_version": {
+      "minLength": 1,
+      "title": "Engine Version",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/SignalSource"
+    },
+    "window": {
+      "$ref": "#/$defs/MeasurementWindow"
+    },
+    "status": {
+      "$ref": "#/$defs/ResultStatus"
+    },
+    "vitals": {
+      "items": {
+        "$ref": "#/$defs/VitalValue"
+      },
+      "title": "Vitals",
+      "type": "array"
+    },
+    "issues": {
+      "items": {
+        "$ref": "#/$defs/ValidationIssue"
+      },
+      "title": "Issues",
+      "type": "array"
+    }
+  },
+  "required": [
+    "session_id",
+    "engine_version",
+    "created_at",
+    "source",
+    "window",
+    "status",
+    "vitals"
+  ],
+  "title": "VitalsResult",
+  "type": "object"
+}
