@@ -98,7 +98,13 @@ def run_pipeline_on_video(
         "frames_ready":    0,
         "frames_ok":       0,
         "frames_low_q":    0,
+        "frames_accepted": 0,
+        "frames_suspicious":0,
+        "frames_rejected": 0,
         "sqi_list":        [],
+        "periodicity_list":[],
+        "cross_roi_list":  [],
+        "motion_list":     [],
         "bvp_last":        None,
         "fps_effective":   0.0,
         "hr_fft":          0.0,
@@ -131,6 +137,10 @@ def run_pipeline_on_video(
         if result.is_ready:
             stats["frames_ready"] += 1
             stats["sqi_list"].append(result.quality_sqi)
+            if result.quality_metrics:
+                stats["periodicity_list"].append(result.quality_metrics.get('periodicity', 0))
+                stats["cross_roi_list"].append(result.quality_metrics.get('r_mean', 0))
+                stats["motion_list"].append(result.quality_metrics.get('motion_score', 0))
             stats["bvp_last"]      = result.bvp_signal
             stats["fps_effective"] = result.fps
 
@@ -138,6 +148,12 @@ def run_pipeline_on_video(
                 stats["frames_ok"] += 1
             elif result.status == "LOW_QUALITY":
                 stats["frames_low_q"] += 1
+            elif result.status == "ACCEPTED":
+                stats["frames_accepted"] += 1
+            elif result.status == "SUSPICIOUS":
+                stats["frames_suspicious"] += 1
+            elif result.status == "REJECTED":
+                stats["frames_rejected"] += 1
 
         # ── In progress mỗi giây ──────────────────────────────────────────────
         if verbose:
@@ -147,12 +163,16 @@ def run_pipeline_on_video(
                 elapsed  = now - t_start
                 eta      = (elapsed / (frame_idx + 1)) * (max_frames - frame_idx)
                 sqi_disp = f"{result.quality_sqi:.2f}" if result.is_ready else "  — "
+                q_state = f"{result.quality_state}" if result.quality_state else result.status
+                metrics_str = ""
+                if result.quality_metrics:
+                    m = result.quality_metrics
+                    metrics_str = f" | SNR={m.get('snr',0):.2f} Per={m.get('periodicity',0):.2f} r={m.get('r_mean',0):.2f} Mot={m.get('motion_score',0):.2f}"
+                
                 print(
                     f"  [{pct:5.1f}%] frame={frame_idx:5d} | "
-                    f"status={result.status:<12} | "
-                    f"progress={result.progress:.0%} | "
-                    f"SQI={sqi_disp} | "
-                    f"ETA={eta:.0f}s"
+                    f"gate={q_state:<10} | "
+                    f"buf={result.progress:.0%}{metrics_str}"
                 )
                 last_print_time = now
 
@@ -198,16 +218,23 @@ def print_report(stats: dict) -> None:
     print(f"  Buffer ready        : {stats['frames_ready']:,}  ({ready_rate:.1f}%)")
     print(f"  Status OK           : {stats['frames_ok']:,}  ({ok_rate:.1f}% of ready)")
     print(f"  Status LOW_QUALITY  : {stats['frames_low_q']:,}")
+    print(f"  Status ACCEPTED     : {stats['frames_accepted']:,}")
+    print(f"  Status SUSPICIOUS   : {stats['frames_suspicious']:,}")
+    print(f"  Status REJECTED     : {stats['frames_rejected']:,}")
     print()
-    print(f"  ── Signal Quality (SQI) ────────────────────────")
+    print(f"  ── Signal Quality (SQI Advanced) ───────────────")
     if len(sqi_list) > 0:
-        print(f"  SQI mean            : {sqi_arr.mean():.3f}")
-        print(f"  SQI median          : {np.median(sqi_arr):.3f}")
-        print(f"  SQI min             : {sqi_arr.min():.3f}")
-        print(f"  SQI max             : {sqi_arr.max():.3f}")
-        print(f"  Frames SQI >= 0.7   : {(sqi_arr >= 0.7).sum():,}  (tốt)")
-        print(f"  Frames SQI 0.4-0.7  : {((sqi_arr >= 0.4) & (sqi_arr < 0.7)).sum():,}  (trung bình)")
-        print(f"  Frames SQI < 0.4    : {(sqi_arr < 0.4).sum():,}  (kém)")
+        per_arr = np.array(stats["periodicity_list"]) if stats["periodicity_list"] else np.array([0.0])
+        cro_arr = np.array(stats["cross_roi_list"]) if stats["cross_roi_list"] else np.array([0.0])
+        mot_arr = np.array(stats["motion_list"]) if stats["motion_list"] else np.array([0.0])
+        
+        print(f"  SNR (quality_sqi)   : Mean {sqi_arr.mean():.3f} | Median {np.median(sqi_arr):.3f}")
+        print(f"  Periodicity         : Mean {per_arr.mean():.3f} | Median {np.median(per_arr):.3f}")
+        print(f"  Cross-ROI (r_mean)  : Mean {cro_arr.mean():.3f} | Median {np.median(cro_arr):.3f}")
+        print(f"  Motion Score        : Mean {mot_arr.mean():.3f} | Median {np.median(mot_arr):.3f}")
+        print(f"  - - - - - - - - - - - - - - - - - - - - - - - -")
+        print(f"  Frames SNR >= 0.4   : {(sqi_arr >= 0.4).sum():,}  (Pass)")
+        print(f"  Frames SNR < 0.4    : {(sqi_arr < 0.4).sum():,}  (Fail)")
     else:
         print(f"  Không có frame nào đủ buffer để tính SQI")
     print()
