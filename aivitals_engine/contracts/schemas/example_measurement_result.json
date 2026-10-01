@@ -1,0 +1,26 @@
+{
+  "measurement_id": "example-session",
+  "status": "READY",
+  "quality": "GOOD",
+  "quality_score": 85,
+  "measured_at": "2026-01-01T08:00:30Z",
+  "algorithm_version": "synthetic-1.0.0+vitals-0.1.0",
+  "disclaimer": "Kết quả chỉ mang tính tham khảo sức khỏe, không dùng để chẩn đoán hay thay thế thiết bị y tế.",
+  "metrics": {
+    "heart_rate": {
+      "value": 72.8,
+      "unit": "bpm",
+      "confidence": 0.922
+    },
+    "hrv_rmssd": {
+      "value": 43.7,
+      "unit": "ms",
+      "confidence": 0.833
+    },
+    "respiration_rate": {
+      "value": 15.0,
+      "unit": "breaths_per_minute",
+      "confidence": 0.921
+    }
+  }
+}
