@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.0.0",
+  "result_id": "00000000-0000-0000-0000-000000000001",
+  "session_id": "example-session",
+  "engine_version": "0.1.0",
+  "created_at": "2026-01-01T08:00:30Z",
+  "source": {
+    "rppg_method": "synthetic",
+    "rppg_method_version": "1.0.0",
+    "sampling_rate_hz": 30.0,
+    "signal_quality": 0.85,
+    "missing_ratio": 0.0
+  },
+  "window": {
+    "start": "2026-01-01T00:00:00Z",
+    "end": "2026-01-01T00:00:40Z",
+    "duration_seconds": 40.0
+  },
+  "status": "OK",
+  "vitals": [
+    {
+      "code": "heart_rate",
+      "value": 72.8,
+      "unit": "bpm",
+      "timestamp": "2026-01-01T00:00:40Z",
+      "window": {
+        "start": "2026-01-01T00:00:30Z",
+        "end": "2026-01-01T00:00:40Z",
+        "duration_seconds": 10.0
+      },
+      "quality": 0.85,
+      "confidence": 0.922,
+      "status": "OK",
+      "issues": [],
+      "algorithm": {
+        "name": "hr_spectral_peak_fusion",
+        "version": "0.1.0"
+      },
+      "model": null
+    },
+    {
+      "code": "hrv_rmssd",
+      "value": 43.7,
+      "unit": "ms",
+      "timestamp": "2026-01-01T00:00:40Z",
+      "window": {
+        "start": "2026-01-01T00:00:00Z",
+        "end": "2026-01-01T00:00:40Z",
+        "duration_seconds": 40.0
+      },
+      "quality": 0.85,
+      "confidence": 0.833,
+      "status": "OK",
+      "issues": [],
+      "algorithm": {
+        "name": "hrv_time_domain",
+        "version": "0.2.0"
+      },
+      "model": null
+    },
+    {
+      "code": "hrv_sdnn",
+      "value": 35.8,
+      "unit": "ms",
+      "timestamp": "2026-01-01T00:00:40Z",
+      "window": {
+        "start": "2026-01-01T00:00:00Z",
+        "end": "2026-01-01T00:00:40Z",
+        "duration_seconds": 40.0
+      },
+      "quality": 0.85,
+      "confidence": 0.833,
+      "status": "OK",
+      "issues": [],
+      "algorithm": {
+        "name": "hrv_time_domain",
+        "version": "0.2.0"
+      },
+      "model": null
+    },
+    {
+      "code": "hrv_mean_ibi",
+      "value": 830.6,
+      "unit": "ms",
+      "timestamp": "2026-01-01T00:00:40Z",
+      "window": {
+        "start": "2026-01-01T00:00:00Z",
+        "end": "2026-01-01T00:00:40Z",
+        "duration_seconds": 40.0
+      },
+      "quality": 0.85,
+      "confidence": 0.833,
+      "status": "OK",
+      "issues": [],
+      "algorithm": {
+        "name": "hrv_time_domain",
+        "version": "0.2.0"
+      },
+      "model": null
+    },
+    {
+      "code": "respiratory_rate",
+      "value": 15.0,
+      "unit": "brpm",
+      "timestamp": "2026-01-01T00:00:40Z",
+      "window": {
+        "start": "2026-01-01T00:00:00Z",
+        "end": "2026-01-01T00:00:40Z",
+        "duration_seconds": 40.0
+      },
+      "quality": 0.85,
+      "confidence": 0.921,
+      "status": "OK",
+      "issues": [],
+      "algorithm": {
+        "name": "rr_modulation_fusion",
+        "version": "0.1.0"
+      },
+      "model": null
+    }
+  ],
+  "issues": []
+}

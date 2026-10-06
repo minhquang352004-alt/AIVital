@@ -1,0 +1,297 @@
+{
+  "states": [
+    "IDLE",
+    "CAMERA_PERMISSION",
+    "CAMERA_READY",
+    "FACE_SEARCH",
+    "FACE_LOCKED",
+    "SIGNAL_ACQUIRING",
+    "QUALITY_CHECK",
+    "COMPUTING",
+    "RESULT_READY",
+    "FAILED",
+    "CANCELLED"
+  ],
+  "events": [
+    "REQUEST_CAMERA",
+    "PERMISSION_GRANTED",
+    "PERMISSION_DENIED",
+    "CAMERA_ERROR",
+    "START_MEASUREMENT",
+    "FACE_FOUND",
+    "FACE_LOST",
+    "FACE_SEARCH_TIMEOUT",
+    "ACQUISITION_STARTED",
+    "WINDOW_FILLED",
+    "QUALITY_PASSED",
+    "QUALITY_FAILED",
+    "RESULT_VALID",
+    "RESULT_INVALID",
+    "CONTINUE_MEASUREMENT",
+    "CANCEL",
+    "RESET"
+  ],
+  "terminal_states": [
+    "CANCELLED",
+    "FAILED",
+    "RESULT_READY"
+  ],
+  "transitions": [
+    {
+      "from": "CAMERA_PERMISSION",
+      "event": "CAMERA_ERROR",
+      "to": "FAILED"
+    },
+    {
+      "from": "CAMERA_PERMISSION",
+      "event": "CANCEL",
+      "to": "CANCELLED"
+    },
+    {
+      "from": "CAMERA_PERMISSION",
+      "event": "PERMISSION_DENIED",
+      "to": "FAILED"
+    },
+    {
+      "from": "CAMERA_PERMISSION",
+      "event": "PERMISSION_GRANTED",
+      "to": "CAMERA_READY"
+    },
+    {
+      "from": "CAMERA_READY",
+      "event": "CAMERA_ERROR",
+      "to": "FAILED"
+    },
+    {
+      "from": "CAMERA_READY",
+      "event": "CANCEL",
+      "to": "CANCELLED"
+    },
+    {
+      "from": "CAMERA_READY",
+      "event": "START_MEASUREMENT",
+      "to": "FACE_SEARCH"
+    },
+    {
+      "from": "CANCELLED",
+      "event": "RESET",
+      "to": "IDLE"
+    },
+    {
+      "from": "COMPUTING",
+      "event": "CAMERA_ERROR",
+      "to": "FAILED"
+    },
+    {
+      "from": "COMPUTING",
+      "event": "CANCEL",
+      "to": "CANCELLED"
+    },
+    {
+      "from": "COMPUTING",
+      "event": "RESULT_INVALID",
+      "to": "FAILED"
+    },
+    {
+      "from": "COMPUTING",
+      "event": "RESULT_VALID",
+      "to": "RESULT_READY"
+    },
+    {
+      "from": "FACE_LOCKED",
+      "event": "ACQUISITION_STARTED",
+      "to": "SIGNAL_ACQUIRING"
+    },
+    {
+      "from": "FACE_LOCKED",
+      "event": "CAMERA_ERROR",
+      "to": "FAILED"
+    },
+    {
+      "from": "FACE_LOCKED",
+      "event": "CANCEL",
+      "to": "CANCELLED"
+    },
+    {
+      "from": "FACE_LOCKED",
+      "event": "FACE_LOST",
+      "to": "FACE_SEARCH"
+    },
+    {
+      "from": "FACE_SEARCH",
+      "event": "CAMERA_ERROR",
+      "to": "FAILED"
+    },
+    {
+      "from": "FACE_SEARCH",
+      "event": "CANCEL",
+      "to": "CANCELLED"
+    },
+    {
+      "from": "FACE_SEARCH",
+      "event": "FACE_FOUND",
+      "to": "FACE_LOCKED"
+    },
+    {
+      "from": "FACE_SEARCH",
+      "event": "FACE_SEARCH_TIMEOUT",
+      "to": "FAILED"
+    },
+    {
+      "from": "FAILED",
+      "event": "RESET",
+      "to": "IDLE"
+    },
+    {
+      "from": "IDLE",
+      "event": "CANCEL",
+      "to": "CANCELLED"
+    },
+    {
+      "from": "IDLE",
+      "event": "REQUEST_CAMERA",
+      "to": "CAMERA_PERMISSION"
+    },
+    {
+      "from": "QUALITY_CHECK",
+      "event": "CAMERA_ERROR",
+      "to": "FAILED"
+    },
+    {
+      "from": "QUALITY_CHECK",
+      "event": "CANCEL",
+      "to": "CANCELLED"
+    },
+    {
+      "from": "QUALITY_CHECK",
+      "event": "FACE_LOST",
+      "to": "FACE_SEARCH"
+    },
+    {
+      "from": "QUALITY_CHECK",
+      "event": "QUALITY_FAILED",
+      "to": "SIGNAL_ACQUIRING"
+    },
+    {
+      "from": "QUALITY_CHECK",
+      "event": "QUALITY_PASSED",
+      "to": "COMPUTING"
+    },
+    {
+      "from": "RESULT_READY",
+      "event": "CONTINUE_MEASUREMENT",
+      "to": "SIGNAL_ACQUIRING"
+    },
+    {
+      "from": "RESULT_READY",
+      "event": "RESET",
+      "to": "IDLE"
+    },
+    {
+      "from": "SIGNAL_ACQUIRING",
+      "event": "CAMERA_ERROR",
+      "to": "FAILED"
+    },
+    {
+      "from": "SIGNAL_ACQUIRING",
+      "event": "CANCEL",
+      "to": "CANCELLED"
+    },
+    {
+      "from": "SIGNAL_ACQUIRING",
+      "event": "FACE_LOST",
+      "to": "FACE_SEARCH"
+    },
+    {
+      "from": "SIGNAL_ACQUIRING",
+      "event": "WINDOW_FILLED",
+      "to": "QUALITY_CHECK"
+    }
+  ],
+  "failures": [
+    {
+      "code": "CAMERA_PERMISSION_DENIED",
+      "message": "Bạn chưa cấp quyền camera. Hãy cho phép camera để bắt đầu đo."
+    },
+    {
+      "code": "CAMERA_UNAVAILABLE",
+      "message": "Không mở được camera. Hãy kiểm tra thiết bị hoặc ứng dụng khác đang dùng camera."
+    },
+    {
+      "code": "FACE_NOT_FOUND",
+      "message": "Không tìm thấy khuôn mặt. Hãy nhìn thẳng vào camera và giữ mặt trong khung."
+    },
+    {
+      "code": "SIGNAL_QUALITY_INSUFFICIENT",
+      "message": "Tín hiệu chưa đủ tốt. Hãy ngồi yên và đo ở nơi đủ sáng."
+    },
+    {
+      "code": "MEASUREMENT_INVALID",
+      "message": "Kết quả đo không hợp lệ. Hãy thử đo lại."
+    }
+  ],
+  "failure_by_event": {
+    "PERMISSION_DENIED": "CAMERA_PERMISSION_DENIED",
+    "CAMERA_ERROR": "CAMERA_UNAVAILABLE",
+    "FACE_SEARCH_TIMEOUT": "FACE_NOT_FOUND",
+    "QUALITY_FAILED": "SIGNAL_QUALITY_INSUFFICIENT",
+    "RESULT_INVALID": "MEASUREMENT_INVALID"
+  },
+  "database_mapping": [
+    {
+      "state": "IDLE",
+      "measurements_state": "IDLE",
+      "measurements_status": "CREATED"
+    },
+    {
+      "state": "CAMERA_PERMISSION",
+      "measurements_state": "CAMERA_PERMISSION",
+      "measurements_status": "RUNNING"
+    },
+    {
+      "state": "CAMERA_READY",
+      "measurements_state": "CAMERA_READY",
+      "measurements_status": "RUNNING"
+    },
+    {
+      "state": "FACE_SEARCH",
+      "measurements_state": "FACE_SEARCH",
+      "measurements_status": "RUNNING"
+    },
+    {
+      "state": "FACE_LOCKED",
+      "measurements_state": "FACE_LOCKED",
+      "measurements_status": "RUNNING"
+    },
+    {
+      "state": "SIGNAL_ACQUIRING",
+      "measurements_state": "SIGNAL_ACQUIRING",
+      "measurements_status": "RUNNING"
+    },
+    {
+      "state": "QUALITY_CHECK",
+      "measurements_state": "QUALITY_CHECK",
+      "measurements_status": "RUNNING"
+    },
+    {
+      "state": "COMPUTING",
+      "measurements_state": "COMPUTING",
+      "measurements_status": "RUNNING"
+    },
+    {
+      "state": "RESULT_READY",
+      "measurements_state": "RESULT_READY",
+      "measurements_status": "COMPLETED"
+    },
+    {
+      "state": "FAILED",
+      "measurements_state": null,
+      "measurements_status": "FAILED"
+    },
+    {
+      "state": "CANCELLED",
+      "measurements_state": null,
+      "measurements_status": "STOPPED"
+    }
+  ]
+}

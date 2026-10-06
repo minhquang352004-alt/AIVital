@@ -79,7 +79,7 @@ aivitals_engine/
 
 ## 3. Cài đặt & Chuẩn bị Môi trường
 
-Dự án sử dụng Python 3.8+ và các thư viện xử lý tín hiệu lõi nhẹ:
+Dự án sử dụng Python 3.11+ (module vitals/validation dùng `StrEnum`, `datetime.UTC` và pydantic 2) và các thư viện xử lý tín hiệu lõi nhẹ:
 
 ```bash
 # 1. Di chuyển vào thư mục dự án
