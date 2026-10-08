@@ -8,6 +8,7 @@ import numpy as np
 from aivitals_engine.benchmark.team_methods import TEAM_METHODS, green_intensity
 from aivitals_engine.contracts.bvp_window import BVPWindow
 from aivitals_engine.contracts.result import VitalsResult
+from aivitals_engine.features import BVPFeatureExtractor, BVPFeatures
 from aivitals_engine.integration.frontend_mapper import to_measurement_result
 from aivitals_engine.integration.vitals_service import VitalsService
 from aivitals_engine.signal.sliding_buffer import SlidingWindowBuffer
@@ -32,6 +33,7 @@ class RealtimeVitalsUpdate:
     frame: FrameResult
     vitals: Optional[VitalsResult] = None
     window_seconds: float = 0.0
+    bvp_features: Optional[BVPFeatures] = None
 
     @property
     def has_new_vitals(self) -> bool:
@@ -50,6 +52,7 @@ class RealtimeVitalsEngine:
         self._config = config or RealtimeVitalsConfig()
         self._pipeline = pipeline or RealtimeSignalPipeline()
         self._service = service or VitalsService()
+        self._feature_extractor = BVPFeatureExtractor()
         self._long_buffer = SlidingWindowBuffer(
             window_sec=self._config.long_window_sec,
             target_fps=self._config.target_fps,
@@ -60,6 +63,11 @@ class RealtimeVitalsEngine:
         self._frame_flags: deque[tuple[float, bool]] = deque()
         self._last_compute_ts: Optional[float] = None
         self._latest: Optional[VitalsResult] = None
+        self._latest_features: Optional[BVPFeatures] = None
+
+    @property
+    def latest_features(self) -> Optional[BVPFeatures]:
+        return self._latest_features
 
     @property
     def latest_result(self) -> Optional[VitalsResult]:
@@ -74,6 +82,7 @@ class RealtimeVitalsEngine:
         self._frame_flags.clear()
         self._last_compute_ts = None
         self._latest = None
+        self._latest_features = None
         self._service.reset_session(self.session_id)
 
     def process_frame(self, frame_bgr: np.ndarray, timestamp: Optional[float] = None) -> RealtimeVitalsUpdate:
@@ -88,7 +97,13 @@ class RealtimeVitalsEngine:
         window = self.build_window(frame, ts)
         self._last_compute_ts = ts
         self._latest = self._service.compute(window, self.session_id)
-        return RealtimeVitalsUpdate(frame=frame, vitals=self._latest, window_seconds=window.duration_seconds)
+        self._latest_features = self._feature_extractor.extract(window.samples, window.sampling_rate_hz)
+        return RealtimeVitalsUpdate(
+            frame=frame,
+            vitals=self._latest,
+            window_seconds=window.duration_seconds,
+            bvp_features=self._latest_features,
+        )
 
     def build_window(self, frame: FrameResult, ts: float) -> BVPWindow:
         rgb, fps = self._long_buffer.get_resampled_window()
