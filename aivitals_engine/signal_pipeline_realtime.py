@@ -299,6 +299,18 @@ class RealtimeSignalPipeline:
         """
         return self._buffer.get_sub_roi_raw_window()
 
+    def extract_features(self):
+        """
+        Trích xuất đặc trưng sinh lý BVP (BVPFeatures) từ cửa sổ hiện tại.
+        Trả về None nếu buffer chưa đủ dữ liệu (chưa ready).
+        """
+        if not self._buffer.is_ready():
+            return None
+        rgb_resampled, effective_fps = self._buffer.get_resampled_window()
+        bvp = self._run_rppg(rgb_resampled, effective_fps)
+        from aivitals_engine.features import BVPFeatureExtractor
+        return BVPFeatureExtractor().extract(bvp, effective_fps)
+
     # ──────────────────────────────────────────────────────────────────────────
     # Private — factory và helper
     # ──────────────────────────────────────────────────────────────────────────
