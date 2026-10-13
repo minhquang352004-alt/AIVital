@@ -12,8 +12,10 @@ if PROJECT_ROOT not in sys.path:
 
 from aivitals_engine.benchmark.synthetic import synthesize_bvp_window
 from aivitals_engine.contracts.result import VitalsResult
+from aivitals_engine.health.risk_model import HealthRiskOutput
 from aivitals_engine.integration.frontend_mapper import to_measurement_result
 from aivitals_engine.integration.vitals_service import VitalsService
+from aivitals_engine.models.blood_pressure.interface import BloodPressureEstimate
 from aivitals_engine.models.deep.specs import DEEP_MODEL_SPECS
 from aivitals_engine.quality.measurement_state import export_state_contract
 
@@ -32,6 +34,8 @@ def build_contracts() -> dict[str, object]:
     example = build_example_result()
     return {
         "vital_result.schema.json": VitalsResult.model_json_schema(),
+        "blood_pressure_estimate.schema.json": BloodPressureEstimate.model_json_schema(),
+        "health_risk_output.schema.json": HealthRiskOutput.model_json_schema(),
         "measurement_states.json": export_state_contract(),
         "deep_model_adapter_plan.json": [asdict(spec) for spec in DEEP_MODEL_SPECS.values()],
         "example_vitals_result.json": example.model_dump(mode="json"),

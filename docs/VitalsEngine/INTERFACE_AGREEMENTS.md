@@ -17,6 +17,8 @@ Các điểm nối giữa phần của Khoa với Khang, Quang và Hào, đúng 
 
 Đầu vào của khối vitals là `BVPWindow` (`contracts/bvp_window.py`): `samples`, `sampling_rate_hz`, `start_timestamp`, `method`, `method_version`, `signal_quality`, `missing_ratio`, `raw_samples`, `roi_samples`.
 
+Đặc trưng BVP cho mô hình huyết áp (Tuần 5): `RealtimeVitalsEngine` gọi `BVPFeatureExtractor` của Khang trên cửa sổ dài và đưa 23 đặc trưng vào `build_bp_features()` theo đúng thứ tự `BVPFeatures.feature_names()` (xem `docs/VitalsEngine/BP_HEALTH_MODEL.md`).
+
 Việc cần Khang hỗ trợ:
 1. Quality Gate đang lấy thời gian bằng `time.perf_counter()` nên khi chạy video offline bị kẹt `REJECTED`; đề nghị dùng `timestamp` của frame.
 2. Trả BVP riêng của trán / má (cùng độ dài cửa sổ) để rule `CROSS_ROI_INCONSISTENT` chạy được realtime.
