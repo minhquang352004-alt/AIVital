@@ -2,6 +2,9 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from threading import Lock
+from typing import Protocol
+
+import numpy as np
 
 from aivitals_engine.config.vitals_config import VitalsConfig
 from aivitals_engine.contracts.bvp_window import BVPWindow
@@ -27,6 +30,10 @@ from aivitals_engine.vitals.hr import HeartRateEstimate, HeartRateEstimator
 from aivitals_engine.vitals.hrv import HRVEstimate, HRVEstimator
 from aivitals_engine.vitals.rr import RespiratoryRateEstimate, RespiratoryRateEstimator
 from aivitals_engine.vitals.tracker import TemporalTracker, TrackerConfig
+
+
+class ConfidenceTransform(Protocol):
+    def transform(self, raw_confidence: np.ndarray | float) -> np.ndarray: ...
 
 
 @dataclass
@@ -57,10 +64,12 @@ class VitalsService:
         config: VitalsConfig | None = None,
         validator: VitalValidator | None = None,
         clock: Callable[[], datetime] = utc_now,
+        confidence_calibrator: ConfidenceTransform | None = None,
     ) -> None:
         self._config = config or VitalsConfig()
         self._validator = validator or VitalValidator(self._config.validation)
         self._clock = clock
+        self._calibrator = confidence_calibrator
         self._heart_rate = HeartRateEstimator(self._config.heart_rate, self._config.beats)
         self._beat_extractor = BeatExtractor(self._config.beats)
         self._hrv = HRVEstimator(self._config.hrv)
@@ -129,7 +138,10 @@ class VitalsService:
             ),
             missing_ratio=window.missing_ratio,
         )
-        return compute_confidence(inputs, self._config.confidence)
+        raw = compute_confidence(inputs, self._config.confidence)
+        if self._calibrator is None:
+            return raw
+        return float(np.clip(self._calibrator.transform(raw)[0], 0.0, 1.0))
 
     def _signal_quality_score(self, window: BVPWindow, snr_db: float | None) -> float:
         if window.signal_quality is not None:
