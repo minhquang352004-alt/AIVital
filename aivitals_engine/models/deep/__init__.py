@@ -1,3 +1,10 @@
+from aivitals_engine.models.deep.adapter import (
+    DeepRPPGAdapter,
+    InferenceRunner,
+    OnnxInferenceRunner,
+    TorchInferenceRunner,
+    resample_frames,
+)
 from aivitals_engine.models.deep.preprocessing import (
     build_representation,
     diff_normalize,
@@ -15,6 +22,11 @@ from aivitals_engine.models.deep.specs import (
 )
 
 __all__ = [
+    "DeepRPPGAdapter",
+    "InferenceRunner",
+    "OnnxInferenceRunner",
+    "TorchInferenceRunner",
+    "resample_frames",
     "DEEP_MODEL_SPECS",
     "DeepModelSpec",
     "InputLayout",

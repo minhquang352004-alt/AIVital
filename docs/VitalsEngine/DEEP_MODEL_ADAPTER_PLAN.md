@@ -24,19 +24,37 @@ Thông số theo cấu hình phổ biến của rPPG-Toolbox (UBFC / PURE). Late
 - **DeepPhys:** baseline deep kinh điển, TS-CAN là bản cải tiến trực tiếp; dùng làm mốc so sánh.
 - **PhysNet:** 3D CNN phải chờ đủ 128 frame mới suy luận, độ trễ lớn; hợp với benchmark offline.
 
-## 3. Cách tích hợp vào repo nhóm
+## 3. Adapter (Tuần 6)
 
-| Hạng mục | Yêu cầu |
+`aivitals_engine/models/deep/adapter.py`:
+
+| Thành phần | Vai trò |
 |---|---|
-| Lớp cơ sở | Kế thừa `BaseNeuralRPPGModel` của Khang (`models/base.py`), cài `load_weights`, `predict` |
-| Input | Face crop RGB 72×72 từ khối face/ROI của Khang (pipeline hiện chỉ trả RGB trung bình theo ROI, cần thêm crop) |
-| Tiền xử lý | `build_representation()` → `to_model_layout()` theo `layout` và `frame_depth` của spec |
-| FPS | 30 fps ổn định; camera khác 30 fps phải resample trước vì model train ở 30 fps |
-| Output | `restore_pulse()` đổi đạo hàm xung về BVP, sau đó đi vào `VitalsService` như GREEN / CHROM / POS |
-| Trọng số / license | Kiểm tra license của kiến trúc và trọng số pretrained trước khi đưa vào sản phẩm |
+| `DeepRPPGAdapter` | Nhận `FramePacket` có `face_crop`, giữ đủ `chunk_frames`, dựng input theo spec, chạy model, trả `BVPWindow` để đi tiếp `VitalsService` như GREEN / CHROM / POS |
+| `TorchInferenceRunner` / `OnnxInferenceRunner` | Chạy model PyTorch hoặc ONNX (tự chọn GPU nếu có) |
+| `resample_frames` | Camera lệch quá 10% so với 30 fps thì nội suy chuỗi frame về 30 fps trước khi đưa vào model |
+| `stride_frames` | Chỉ chạy lại model sau mỗi bước trượt (mặc định 1 giây), giữa hai lần trả lại kết quả cũ để giảm tải |
 
-## 4. Việc còn lại
+Khung `BaseNeuralRPPGModel` của Khang (`models/base.py`) nhận RGB trung bình theo ROI nên không đủ cho model deep (cần ảnh mặt 72×72); vì vậy deep model đi qua `DeepRPPGAdapter` với face crop.
 
-- Có trọng số pretrained và code kiến trúc mạng.
-- Khang bổ sung face crop vào `FrameResult`.
-- Chạy benchmark so với GREEN / CHROM / POS bằng `python -m aivitals_engine.benchmark`.
+```python
+from aivitals_engine.models.deep import DEEP_MODEL_SPECS, DeepRPPGAdapter, TorchInferenceRunner
+from aivitals_engine.models.registry import ModelRegistry
+
+registry = ModelRegistry("model_store")
+entry = registry.latest("tscan")
+weights_path = registry.verify(entry)
+adapter = DeepRPPGAdapter(DEEP_MODEL_SPECS["tscan"], TorchInferenceRunner(module), entry.version, entry.checksum_sha256)
+```
+
+## 4. Model registry, checksum và hiệu chỉnh confidence (Tuần 6)
+
+- `models/registry.py`: lưu `model_registry.json` (ghi nguyên tử), mỗi model có `name`, `version` (semver), `kind`, `status` (experimental → research_only → validated → production → deprecated), `checksum_sha256`, `dataset_version`, `metrics`. `verify()` tính lại SHA-256, sai thì báo `ChecksumMismatchError`; artifact phải nằm trong thư mục registry.
+- `models/calibration.py`: `ConfidenceCalibrator` (isotonic) học từ confidence thô và sai số HR, đánh giá bằng ECE; nạp kèm checksum. `VitalsService(confidence_calibrator=...)` áp dụng cho confidence nhịp tim.
+- Báo cáo benchmark: `python aivitals_engine/scripts/run_model_benchmark.py` → `docs/VitalsEngine/MODEL_BENCHMARK_REPORT.md` (sai số HR theo kịch bản / trạng thái / mức confidence, hiệu chỉnh confidence, baseline huyết áp, trạng thái deep model). Model sinh ra được đăng ký vào registry; baseline huyết áp chỉ được đăng ký khi qua gate dữ liệu.
+
+## 5. Việc còn lại
+
+- Có trọng số pretrained và code kiến trúc mạng (kiểm tra license).
+- Khang bổ sung face crop vào `FrameResult` để adapter chạy realtime.
+- Đo độ chính xác deep model so với GREEN / CHROM / POS khi có trọng số và dữ liệu thật.
