@@ -1,7 +1,12 @@
 import unittest
 import numpy as np
 
-from aivitals_engine.face.detector import BBoxSmoother, SimpleFaceDetector
+from aivitals_engine.face.detector import (
+    BaseFaceDetector,
+    BBoxSmoother,
+    HaarCascadeFaceDetector,
+    SimpleFaceDetector,
+)
 
 
 class TestBBoxSmoother(unittest.TestCase):
@@ -38,25 +43,56 @@ class TestBBoxSmoother(unittest.TestCase):
         self.assertIsNone(result_after_reset)
 
 
-class TestSimpleFaceDetector(unittest.TestCase):
-    """Kiểm thử SimpleFaceDetector và các trường hợp biên."""
+class TestHaarCascadeFaceDetector(unittest.TestCase):
+    """Kiểm thử HaarCascadeFaceDetector với mô hình haarcascade_frontalface_default.xml."""
+
+    def test_cascade_loaded_successfully(self):
+        detector = HaarCascadeFaceDetector()
+        self.assertIsNotNone(detector._cascade, "Cascade classifier không được None")
+        self.assertFalse(detector._cascade.empty(), "Cascade classifier phải tải thành công tệp XML")
 
     def test_detect_empty_frame(self):
-        detector = SimpleFaceDetector()
-        res_none = detector.detect(None)
-        self.assertIsNone(res_none)
+        detector = HaarCascadeFaceDetector()
+        self.assertIsNone(detector.detect(None))
+        self.assertIsNone(detector.detect(np.zeros((0, 0, 3), dtype=np.uint8)))
 
-        res_empty = detector.detect(np.zeros((0, 0, 3), dtype=np.uint8))
-        self.assertIsNone(res_empty)
+    def test_strict_mode_returns_none_on_blank_frame(self):
+        # Khi allow_fallback=False, không được bịa ra bbox nếu không có mặt
+        detector = HaarCascadeFaceDetector(allow_fallback=False)
+        blank_frame = np.full((300, 300, 3), 128, dtype=np.uint8)
+        bbox = detector.detect(blank_frame)
+        self.assertIsNone(bbox, "Strict mode phải trả về None khi không phát hiện mặt")
 
-    def test_detect_central_fallback(self):
-        # Tạo ảnh xám không có mặt, detector phải fallback về vùng 50% trung tâm
-        detector = SimpleFaceDetector()
-        frame = np.full((400, 400, 3), 128, dtype=np.uint8)
-        bbox = detector.detect(frame)
+    def test_fallback_mode_returns_central_bbox(self):
+        # Khi allow_fallback=True, trả về bbox trung tâm cho synthetic frames
+        detector = HaarCascadeFaceDetector(allow_fallback=True)
+        blank_frame = np.full((400, 400, 3), 128, dtype=np.uint8)
+        bbox = detector.detect(blank_frame)
         self.assertIsNotNone(bbox)
         self.assertEqual(len(bbox), 4)
+
+    def test_detect_real_face_on_sample_video(self):
+        import cv2, os
+        sample_path = os.path.join("aivitals_engine", "samples", "vid.avi")
+        if not os.path.exists(sample_path):
+            self.skipTest("Sample video vid.avi không tồn tại")
+
+        cap = cv2.VideoCapture(sample_path)
+        ret, frame = cap.read()
+        cap.release()
+        self.assertTrue(ret, "Đọc frame đầu tiên thất bại")
+
+        detector = HaarCascadeFaceDetector(allow_fallback=False)
+        bbox = detector.detect(frame)
+        self.assertIsNotNone(bbox, "Haar Cascade phải nhận diện được khuôn mặt trên vid.avi")
+        x, y, w, h = bbox
+        self.assertGreater(w, 50, "Độ rộng bbox khuôn mặt phải > 50px")
+        self.assertGreater(h, 50, "Độ cao bbox khuôn mặt phải > 50px")
+
+    def test_backward_compatibility_alias(self):
+        self.assertIs(SimpleFaceDetector, HaarCascadeFaceDetector)
 
 
 if __name__ == "__main__":
     unittest.main()
+

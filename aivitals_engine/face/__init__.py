@@ -1,3 +1,16 @@
-from .detector import BaseFaceDetector, SimpleFaceDetector
+from .detector import (
+    BaseFaceDetector,
+    BBoxSmoother,
+    HaarCascadeFaceDetector,
+    MediaPipeFaceDetector,
+    SimpleFaceDetector,
+)
 
-__all__ = ["BaseFaceDetector", "SimpleFaceDetector"]
+__all__ = [
+    "BaseFaceDetector",
+    "BBoxSmoother",
+    "HaarCascadeFaceDetector",
+    "MediaPipeFaceDetector",
+    "SimpleFaceDetector",
+]
+

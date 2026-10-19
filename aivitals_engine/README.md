@@ -1,203 +1,176 @@
-# AIVitals Engine - Signal & rPPG Module
+# AIVitals Engine — Module Xử Lý Tín Hiệu & Sinh Hiệu (rPPG Core & Vitals)
 
-Hệ thống trích xuất và xử lý tín hiệu xung mạch quang học từ xa (**rPPG - Remote Photoplethysmography**) từ Video/Camera và dữ liệu RGB phục vụ đo lường sinh hiệu không tiếp xúc (**AIVitals**).
+> **Dự án:** AIVitals — Hệ thống đo lường sinh hiệu y tế không tiếp xúc thời gian thực (rPPG V1)  
+> **Kiến trúc Monorepo:** Tầng tính toán xác định (Deterministic Signal & Clinical AI) chạy độc lập, cung cấp dữ liệu sinh hiệu đã kiểm định cho Backend & Frontend.
 
 ---
 
-## 1. Kiến trúc Pipeline tổng quan
+## 1. Phân Định Trách Nhiệm & Ranh Giới Kỹ Thuật (Module Ownership)
+
+Hệ thống `aivitals_engine` được tổ chức thành 2 tầng xử lý khép kín, phân định ranh giới chức năng rõ ràng giữa **Thượng nguồn (Signal)** và **Hạ nguồn (Vitals)**:
 
 ```text
-Input Video / RGB Sample (.mp4 / .csv)
-        ↓
-Face Detection & Sub-ROI Extraction (Trán + 2 bên Má -> Mean RGB)
-        ↓
-Signal Preprocessing (Linear Resampling FPS, Detrending, Butterworth Bandpass Filter)
-        ↓
-rPPG Transformation (POS / CHROM / GREEN)
-        ↓
-BVP Output Waveform (Blood Volume Pulse)
-        ↓
-Signal Quality Index (SQI & SNR: 0.0 ~ 1.0)
-        ↓
-Downstream Vitals Estimation (Heart Rate: FFT / Peak Detection)
+Camera / Video Stream
+        │
+┌───────▼────────────────────────────────────────────────────────────────────────┐
+│  TẦNG THƯỢNG NGUỒN: CORE SIGNAL & rPPG ENGINE (Phụ trách: Hoàng Khang)         │
+│  • Face Detection & Tracking (Google MediaPipe 478 landmarks / Haar Fallback) │
+│  • Polygon Sub-ROI & Lọc màu da YCrCb (Trán + 2 Gò má)                        │
+│  • Cửa sổ trượt thời gian thực (SlidingWindowBuffer 8.0s @ 30 FPS, Resampling)│
+│  • Thuật toán rPPG cốt lõi: POS, CHROM, GREEN                                 │
+│  • Cổng chất lượng tín hiệu đa chiều (Quality Gate: SNR, Periodicity, Motion) │
+│  • Trích xuất 23 đặc trưng sinh lý hình thái học BVP (BVPFeatureExtractor)    │
+└───────┬────────────────────────────────────────────────────────────────────────┘
+        │ Sóng BVP đã lọc + SQI + 23 BVP Features
+┌───────▼────────────────────────────────────────────────────────────────────────┐
+│  TẦNG HẠ NGUỒN: VITALS ESTIMATION & CLINICAL AI (Phụ trách: Khoa)             │
+│  • Ước lượng chỉ số sinh tồn: Nhịp tim (HR), Biến thiên tim (HRV), Nhịp thở (RR)│
+│  • Kiểm định sinh lý y tế (Range validation, Sudden-jump guard)              │
+│  • Nghiên cứu mô hình huyết áp (Blood Pressure baseline & Deep models)        │
+│  • Đóng gói Hợp đồng dữ liệu JSON chuẩn mực bàn giao cho Frontend & Backend   │
+└───────────────────────────────────────────────────────────────────────────────┘
 ```
+
+| Tầng xử lý | Người phụ trách | Modules đảm nhiệm | Trách nhiệm chính |
+| :--- | :--- | :--- | :--- |
+| **Upstream (Signal Core)** | **Khang** | `face/`, `roi/`, `signal/`, `rppg/`, `quality/`, `features/`, `signal_pipeline_realtime.py`, `scripts/benchmarks/` | Biến đổi video thô thành sóng BVP chuẩn y tế, kiểm soát chất lượng tín hiệu (SQI), trích xuất 23 đặc trưng BVP (<3ms) và đo kiểm hiệu năng/độ bền hệ thống. |
+| **Downstream (Vitals & Clinical)** | **Khoa** | `vitals/`, `validation/`, `models/`, `integration/`, `scripts/run_vitals_pipeline.py`, `scripts/run_bp_baseline.py` | Tiêu thụ sóng BVP và 23 đặc trưng BVP để tính HR, HRV, RR, huyết áp thử nghiệm, kiểm định sai số y tế và chuẩn hóa schema JSON. |
 
 ---
 
-## 2. Cấu trúc Module chuẩn hóa (9 Modules)
-
-Toàn bộ project được cấu trúc thành 9 module chuyên biệt, độc lập và dễ bảo trì:
+## 2. Cấu Trúc Cây Thư Mục Module
 
 ```text
 aivitals_engine/
-├── config/             # 1. Cấu hình tham số sinh lý (fps, window_sec, cutoffs 0.75-2.5Hz)
-│   ├── __init__.py
-│   └── settings.py
-├── face/               # 2. Phát hiện khuôn mặt (Haar Cascade & Center Fallback)
-│   ├── __init__.py
-│   └── detector.py
-├── roi/                # 3. Trích xuất vùng mao mạch da (Trán + 2 Má) -> Vector RGB
-│   ├── __init__.py
-│   └── extractor.py
-├── signal/             # 4. Tiền xử lý tín hiệu
-│   ├── __init__.py
-│   ├── detrend.py      # Khử trôi đường cơ sở (Smoothness Priors Detrending, λ=100)
-│   ├── filter.py       # Bộ lọc thông dải Butterworth 2 chiều zero-phase
-│   ├── resample.py     # Nội suy tuyến tính xử lý trôi FPS của webcam
-│   ├── preprocess.py   # Pipeline tiền xử lý RGB
-│   └── reader.py       # Tự động đọc và parse Video (.mp4/.avi) hoặc CSV (.csv)
-├── rppg/               # 5. Các thuật toán rPPG cốt lõi
-│   ├── __init__.py
-│   ├── base.py         # Interface chuẩn RPPGMethod (reset, update, get_signal, get_quality)
-│   ├── pos.py          # Thuật toán POS (Wang et al., 2017 - Khuyên dùng mặc định)
-│   ├── chrom.py        # Thuật toán CHROM (de Haan & Jeanne, 2013)
-│   └── green.py        # Thuật toán GREEN (Verkruysse et al., 2008)
-├── vitals/             # 6. Tính toán sinh hiệu từ sóng BVP (Khoa phụ trách)
-│   ├── __init__.py
-│   ├── hr.py           # Ước lượng nhịp tim (HR)
-│   ├── hrv.py          # Ước lượng biến thiên nhịp tim (RMSSD, SDNN)
-│   └── rr.py           # Ước lượng nhịp thở (RR)
-├── quality/            # 7. Đánh giá chất lượng tín hiệu BVP
-│   ├── __init__.py
-│   └── sqi.py          # Tự suy phổ (Self-supervised SNR) và chuẩn hóa SQI (0.0 ~ 1.0)
-├── validation/         # 8. Kiểm tra tính hợp lệ & sai số (Khoa phụ trách)
-│   ├── __init__.py
-│   ├── validator.py    # Quality gate: kiểm tra range sinh lý, sudden-jump, window
-│   └── metrics.py      # Đánh giá sai số so với nhãn chuẩn: MAE, RMSE, Pearson
-├── models/             # 9. Khung giao diện trừu tượng cho Deep Learning Models (V2)
-│   ├── __init__.py
-│   └── base.py         # BaseNeuralRPPGModel (PhysNet, DeepPhys, TS-CAN...)
-├── samples/            # Dữ liệu mẫu kiểm thử
-│   ├── sample_rgb.csv  # 900 mẫu RGB (30s @ 30 Hz)
-│   └── sample_video.mp4# Video giả lập 300 frames (10s @ 30 FPS)
-├── outputs/            # Thư mục lưu các file sóng BVP kết quả (.csv)
-├── pipeline.py         # Lớp điều phối SignalRPPGPipeline
-└── main.py             # Script kiểm thử đầu-cuối (CLI Test Runner)
+├── config/                 # Cấu hình hệ thống chung (SignalConfig, ROIConfig, FaceDetectorConfig)
+├── face/                   # [Khang] Nhận diện mặt (MediaPipeFaceDetector 3D & HaarCascadeFaceDetector)
+├── roi/                    # [Khang] Trích xuất vùng da mao mạch (Polygon Convex Hull & Lọc da YCrCb)
+├── signal/                 # [Khang] Tiền xử lý tín hiệu & SlidingWindowBuffer (8s, Resampling, Outlier guard)
+├── rppg/                   # [Khang] Bộ 3 thuật toán rPPG cốt lõi (POS, CHROM, GREEN)
+├── quality/                # [Khang] Quality Gate đa chiều (SNR SQI, Periodicity ACF, Cross-ROI, Motion)
+├── features/               # [Khang] Trích xuất 23 đặc trưng sinh lý BVP (Tuần 5, <3ms latency budget)
+├── signal_pipeline_realtime.py # [Khang] Pipeline điều phối xử lý tín hiệu thời gian thực
+│
+├── vitals/                 # [Khoa] Ước lượng sinh hiệu (HR FFT/Peak, HRV RMSSD/SDNN, Respiration RR)
+├── validation/             # [Khoa] Kiểm định ngưỡng y tế lâm sàng & Đánh giá sai số (MAE, RMSE, Pearson)
+├── models/                 # [Khoa] Mô hình dự đoán huyết áp baseline & Deep Learning V2
+├── integration/            # [Khoa] Bộ chuyển đổi dữ liệu và ánh xạ JSON cho Frontend
+│
+├── models/face_landmarker.task # Trọng số mô hình Google MediaPipe Face Mesh
+├── samples/                # Video mẫu phục vụ kiểm thử (vid.avi, sample_video.mp4)
+├── outputs/                # Thư mục lưu trữ kết quả sóng BVP (.csv) và báo cáo benchmark
+└── scripts/                # Các công cụ dòng lệnh thực thi và kiểm thử
 ```
 
 ---
 
-## 3. Cài đặt & Chuẩn bị Môi trường
+## 3. Hướng Dẫn Chạy Kiểm Thử (Runners & Testing Guide)
 
-Dự án sử dụng Python 3.11+ (module vitals/validation dùng `StrEnum`, `datetime.UTC` và pydantic 2) và các thư viện xử lý tín hiệu lõi nhẹ:
+### 3.1. Dành cho phần của Khang (Core Signal & rPPG Engine)
 
-```bash
-# 1. Di chuyển vào thư mục dự án
-cd AIVital
+#### A. Mô phỏng Camera Stream trên video (`run_signal_pipeline.py`)
+Kiểm tra luồng xử lý từ Frame $\to$ MediaPipe $\to$ Đa giác ROI $\to$ Sóng BVP $\to$ SQI:
+```powershell
+# 1. Test nhanh 15 giây đầu với thuật toán POS (mặc định)
+python aivitals_engine/scripts/run_signal_pipeline.py --video aivitals_engine/samples/vid.avi --max-sec 15
 
-# 2. Khởi tạo môi trường ảo (virtual environment)
-python3 -m venv .venv
-# Hoặc trên Windows: python -m venv .venv
+# 2. So sánh đồng thời cả 3 thuật toán (POS, CHROM, GREEN)
+python aivitals_engine/scripts/run_signal_pipeline.py --video aivitals_engine/samples/vid.avi --all-methods --max-sec 15
 
-# 3. Kích hoạt môi trường ảo
-source .venv/bin/activate
-# Hoặc trên Windows: .venv\Scripts\activate
+# 3. Chạy toàn bộ video (Full 84 giây)
+python aivitals_engine/scripts/run_signal_pipeline.py --video aivitals_engine/samples/vid.avi
+```
 
-# 4. Cài đặt dependencies cần thiết
-pip install -r aivitals_engine/requirements.txt
+#### B. Benchmark Đo kiểm Hiệu năng & Khảo sát 5 Tình huống Lỗi Tuần 6 (`bench_engine_performance.py`)
+Đo đạc FPS, Latency p95, tải CPU/RAM, Single-ROI vs Multi-ROI và kiểm định độ bền khi mất mặt, chói sáng, thiếu sáng:
+```powershell
+# Chạy benchmark nhanh (10 giây mỗi test)
+python scripts/benchmarks/bench_engine_performance.py --video aivitals_engine/samples/vid.avi --quick --save-docs
+
+# Chạy benchmark toàn diện và cập nhật báo cáo nghiệm thu chính thức
+python scripts/benchmarks/bench_engine_performance.py --video aivitals_engine/samples/vid.avi --full --save-docs
+```
+*(Báo cáo tự động lưu vào [`docs/ENGINE_BENCHMARK.md`](../docs/ENGINE_BENCHMARK.md)).*
+
+#### C. Chạy Unit Tests riêng cho tầng Signal
+```powershell
+# Kiểm tra Pipeline thời gian thực
+python -m pytest tests/test_signal_pipeline_realtime.py -v
+
+# Kiểm tra MediaPipe Detector & Đa giác ROI
+python -m pytest tests/face/test_mediapipe_detector.py tests/roi/test_polygon_roi.py -v
+
+# Kiểm tra Lọc pixel da YCrCb
+python -m pytest tests/roi/test_skin_filter.py -v
+
+# Kiểm tra Trích xuất 23 đặc trưng BVP (<3ms latency budget)
+python -m pytest tests/features/test_bvp_feature_extractor.py -v
 ```
 
 ---
 
-## 4. Hướng dẫn Chạy Kiểm thử (Test Runner)
+### 3.2. Dành cho phần của Khoa (Vitals, Validation & Blood Pressure)
 
-Script `main.py` hỗ trợ tùy chọn thuật toán qua tham số `--method` (`POS`, `CHROM`, `GREEN`, hoặc `ALL`):
-
-### 4.1. Chạy với thuật toán POS (Khuyên dùng - Kháng nhiễu tốt nhất):
-```bash
-# Chạy với dữ liệu mẫu RGB:
-python -m aivitals_engine.main --input aivitals_engine/samples/sample_rgb.csv --method POS
-
-# Chạy với dữ liệu mẫu Video:
-python -m aivitals_engine.main --input aivitals_engine/samples/sample_video.mp4 --method POS
+#### A. Chạy toàn trình tích hợp Vitals $\to$ JSON Frontend (`run_vitals_pipeline.py`)
+Tiêu thụ sóng BVP từ pipeline của Khang để tính toán sinh hiệu và xuất JSON:
+```powershell
+python aivitals_engine/scripts/run_vitals_pipeline.py --video aivitals_engine/samples/vid.avi --max-sec 30
 ```
 
-### 4.2. Chạy baseline so sánh cả 3 thuật toán (Mặc định):
-Khi không chỉ định `--method`, chương trình sẽ tự động chạy cả 3 thuật toán `POS`, `CHROM`, `GREEN` để so sánh:
-```bash
-python -m aivitals_engine.main --input aivitals_engine/samples/sample_rgb.csv
+#### B. Chạy mô hình Baseline Huyết áp (`run_bp_baseline.py`)
+Huấn luyện và đánh giá mô hình hồi quy Ridge trên bộ đặc trưng BVP:
+```powershell
+python aivitals_engine/scripts/run_bp_baseline.py --subjects 100 --folds 5
 ```
-
-### 4.3. Chạy với video bất kỳ bên ngoài (hoặc dataset UBFC-rPPG):
-```bash
-python -m aivitals_engine.main --input /path/to/your_video.mp4 --method POS
-```
-
-### Kết quả đầu ra:
-1. **Thông tin hiển thị trên Terminal**:
-   * Tần số lấy mẫu (`sampling_rate`).
-   * Độ dài chuỗi mẫu BVP (`BVP samples`).
-   * Chỉ số chất lượng tín hiệu (`Quality: 0.0 ~ 1.0`).
-2. **Các file sóng BVP kết quả** được lưu tại thư mục `aivitals_engine/outputs/`:
-   * `pos_bvp.csv`
-   * `chrom_bvp.csv`
-   * `green_bvp.csv`
-3. **File ghi lại metadata tổng hợp (sampling rate, method, quality)**:
-   * `baseline_summary.csv` (dạng bảng đối soát)
-   * `baseline_summary.json` (dạng JSON máy đọc)
 
 ---
 
-## 5. Hướng dẫn Tích hợp Code (Python API)
+### 3.3. Chạy Toàn Bộ Test Suite Dự Án (All 350+ Tests)
+```powershell
+python -m pytest tests -q
+```
 
-### 5.1. Chạy Pipeline trích xuất BVP từ Video/RGB
+---
+
+## 4. Hướng Dẫn Tích Hợp Code (Python Developer API)
+
+### 4.1. Khởi tạo Pipeline và Xử lý từng Frame
 ```python
-from aivitals_engine import SignalRPPGPipeline
+import cv2
+import time
+from aivitals_engine.signal_pipeline_realtime import RealtimeSignalPipeline
 
-# Khởi tạo pipeline
-pipeline = SignalRPPGPipeline(fps=30.0)
+# Khởi tạo pipeline (mặc định POS + MediaPipe Face Mesh)
+pipeline = RealtimeSignalPipeline(method="POS")
 
-# Chạy thuật toán POS trên file Video hoặc CSV
-result = pipeline.run_on_file("aivitals_engine/samples/sample_video.mp4", algorithm_name="POS")
+cap = cv2.VideoCapture("aivitals_engine/samples/vid.avi")
 
-print(f"Thuật toán: {result.method}")
-print(f"Chỉ số chất lượng SQI: {result.quality:.2f}")
-print(f"Chuỗi sóng BVP: {result.bvp_signal.shape}")
+while cap.isOpened():
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    # Gửi từng frame BGR cùng timestamp vào pipeline
+    result = pipeline.process_frame(frame, timestamp=time.perf_counter())
+
+    if result.status == "FACE_LOST":
+        print("Cảnh báo: Không tìm thấy mặt!")
+    elif result.status == "ARTIFACT":
+        print("Cảnh báo: Khung hình bị rung giật hoặc lóa sáng!")
+    elif result.is_ready:
+        print(f"BVP Ready | SQI: {result.quality_sqi:.3f} | BBox: {result.bbox}")
+        bvp_waveform = result.bvp_signal  # np.ndarray dạng sóng BVP (8 giây)
 ```
 
-### 5.2. Tính toán Nhịp tim (Heart Rate - BPM) từ BVP
-*(Hàm tính HR kế thừa từ `rPPG-Toolbox/evaluation/post_process.py`; các hàm HRV và RR là skeleton interface chuẩn bị cho Khoa phát triển tiếp theo Task K2.1 vì `rPPG-Toolbox` chưa hỗ trợ theo `SOURCE_AUDIT.md`)*
-
+### 4.2. Hợp đồng Giao tiếp: Trích xuất 23 Đặc trưng BVP bàn giao cho Hạ nguồn
 ```python
-from aivitals_engine.vitals import calculate_fft_hr, calculate_peak_hr
+# Khi buffer sẵn sàng (is_ready == True), gọi trích xuất đặc trưng cho mô hình của Khoa:
+features = pipeline.extract_features()
 
-# 1. Ước lượng nhịp tim qua biến đổi Fourier (FFT Periodogram) - REUSE từ rPPG-Toolbox
-hr_fft = calculate_fft_hr(result.bvp_signal, fs=result.sampling_rate)
-print(f"Nhịp tim (FFT): {hr_fft:.1f} BPM")
-
-# 2. Ước lượng nhịp tim qua phát hiện đỉnh sóng (Peak Detection) - REUSE từ rPPG-Toolbox
-hr_peak = calculate_peak_hr(result.bvp_signal, fs=result.sampling_rate)
-print(f"Nhịp tim (Peak): {hr_peak:.1f} BPM")
-
-# 3. Giao diện Skeleton chuẩn bị cho Task K2.1 của Khoa:
-# from aivitals_engine.vitals import calculate_hrv_from_bvp, calculate_respiration_rate
-# hrv_metrics = calculate_hrv_from_bvp(result.bvp_signal, fs=result.sampling_rate)
-# rr = calculate_respiration_rate(result.bvp_signal, fs=result.sampling_rate)
+if features is not None:
+    feature_dict = features.to_feature_dict()
+    print(f"Trích xuất thành công 23 đặc trưng (Độ trễ <3ms):")
+    print(f"• Rise Time: {features.rise_time_mean_ms:.2f} ms")
+    print(f"• Stiffness Index: {features.stiffness_index:.2f}")
+    print(f"• IBI SDNN: {features.ibi_sdnn_ms:.2f} ms")
 ```
-
-### 5.3. Đánh giá sai số với nhãn thiết bị y tế (Validation & Quality Gate)
-*(Hàm metrics kế thừa từ `rPPG-Toolbox/evaluation/metrics.py`; class `VitalsValidator` là skeleton interface cho Task K2.3 của Khoa)*
-
-```python
-from aivitals_engine.validation import evaluate_vital_predictions
-
-# 1. Đánh giá sai số thống kê so với nhãn chuẩn y tế (Ground Truth) - REUSE từ rPPG-Toolbox
-predicted_hrs = [72.0, 75.5, 68.0]
-ground_truth_hrs = [71.0, 74.0, 69.0]
-
-metrics = evaluate_vital_predictions(predicted_hrs, ground_truth_hrs)
-print(f"MAE: {metrics['MAE']:.2f} BPM, RMSE: {metrics['RMSE']:.2f}, Pearson: {metrics['Pearson']:.2f}")
-
-# 2. Quality Gate Framework chuẩn bị cho Task K2.3 của Khoa:
-# from aivitals_engine.validation import VitalsValidator
-# validator = VitalsValidator(max_hr_jump=25.0)
-# report = validator.validate_vitals(hr=hr_fft, bvp_signal=result.bvp_signal, fs=result.sampling_rate)
-```
-
----
-
-## 6. Tiêu chí Đánh giá Chất lượng Tín hiệu (SQI)
-
-* **SQI $\ge$ 0.70**: Tín hiệu BVP rõ nét, chu kỳ tim ổn định $\rightarrow$ Kết quả đo rất tin cậy.
-* **0.40 $\le$ SQI $<$ 0.70**: Tín hiệu trung bình, có nhiễu nhẹ do ánh sáng hoặc cử động nhẹ $\rightarrow$ Chấp nhận được.
-* **SQI $<$ 0.40**: Tín hiệu kém, nhiễu nặng $\rightarrow$ Cảnh báo người dùng ngồi im hoặc cải thiện góc sáng.
