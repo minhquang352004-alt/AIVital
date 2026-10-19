@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 
 class RPPGAlgorithm(str, Enum):
@@ -60,16 +61,30 @@ class ROIConfig:
     fallback_width_ratio:   float = 0.60
     fallback_height_ratio:  float = 0.60
 
+    # ── Lọc màu da người (Skin Pixel Filter - Level 1) ───────────────────────
+    enable_skin_filter:     bool  = True   # Bật lọc màu da YCrCb để loại bỏ tóc, râu, kính
+    skin_cr_min:            int   = 133    # Ngưỡng dưới Cr
+    skin_cr_max:            int   = 173    # Ngưỡng trên Cr
+    skin_cb_min:            int   = 77     # Ngưỡng dưới Cb
+    skin_cb_max:            int   = 127    # Ngưỡng trên Cb
+    skin_y_min:             int   = 20     # Loại bỏ bóng quá tối và sợi tóc đen
+    skin_y_max:             int   = 240    # Loại bỏ điểm lóa sáng
+    min_skin_ratio:         float = 0.10   # Tỷ lệ pixel da tối thiểu để áp dụng lọc
+
 
 @dataclass
 class FaceDetectorConfig:
     """Tham số Face Detector và BBoxSmoother."""
 
+    detector_backend:     str           = "mediapipe"  # "mediapipe" hoặc "cascade"
+    mediapipe_model_path: Optional[str] = None         # Đường dẫn tới face_landmarker.task (None -> dùng mặc định)
+
     smoothing_alpha:      float = 0.65  # Hệ số EMA cho BBoxSmoother
     max_missing_frames:   int   = 10    # Số frame mất mặt tối đa trước khi reset smoother
 
-    # Fallback BBox (trung tâm 50% khung hình) khi cascade không nhận diện được
+    # Fallback BBox (trung tâm 50% khung hình) khi detector không nhận diện được
     fallback_x_ratio:     float = 0.25
     fallback_y_ratio:     float = 0.20
     fallback_width_ratio: float = 0.50
     fallback_height_ratio: float = 0.50
+

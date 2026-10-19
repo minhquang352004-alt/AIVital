@@ -20,8 +20,17 @@ from typing import Optional, Tuple, Union
 
 import numpy as np
 
-from aivitals_engine.config.settings import SignalConfig
-from aivitals_engine.face.detector import BaseFaceDetector, SimpleFaceDetector
+from aivitals_engine.config.settings import (
+    FaceDetectorConfig,
+    ROIConfig,
+    SignalConfig,
+)
+from aivitals_engine.face.detector import (
+    BaseFaceDetector,
+    HaarCascadeFaceDetector,
+    MediaPipeFaceDetector,
+    SimpleFaceDetector,
+)
 from aivitals_engine.quality.sqi import calculate_bvp_quality
 from aivitals_engine.roi.extractor import ROIExtractor, SubROIResult
 from aivitals_engine.rppg.base import RPPGMethod
@@ -69,6 +78,7 @@ class FrameResult:
     progress:       float                = 0.0
     raw_rgb:        Optional[np.ndarray] = None
     bbox:           Optional[tuple]      = None
+    landmarks:      Optional[np.ndarray] = None
     frame_count:    int                  = 0
     artifact_count: int                  = 0
     method_name:    str                  = "POS"
@@ -114,6 +124,8 @@ class RealtimeSignalPipeline:
         rppg_method:        Optional[RPPGMethod]       = None,
         method:             Union[str, RPPGMethod]     = "POS",
         config:             Optional[SignalConfig]     = None,
+        face_config:        Optional[FaceDetectorConfig] = None,
+        roi_config:         Optional[ROIConfig]        = None,
     ) -> None:
         """
         Args:
@@ -121,13 +133,15 @@ class RealtimeSignalPipeline:
                     Bị ghi đè bởi `rppg_method` nếu `rppg_method` được truyền vào.
         """
         self._cfg = config if config is not None else SignalConfig()
+        self._face_cfg = face_config if face_config is not None else FaceDetectorConfig()
+        self._roi_cfg = roi_config if roi_config is not None else ROIConfig()
 
         self._face_detector: BaseFaceDetector = (
-            face_detector if face_detector is not None else SimpleFaceDetector()
+            face_detector if face_detector is not None else self._build_face_detector(self._face_cfg)
         )
         self._roi_extractor: ROIExtractor = (
             roi_extractor if roi_extractor is not None
-            else ROIExtractor()
+            else ROIExtractor(config=self._roi_cfg)
         )
         self._buffer: SlidingWindowBuffer = SlidingWindowBuffer(
             window_sec         = window_sec         if window_sec         is not None else self._cfg.window_sec,
@@ -190,14 +204,16 @@ class RealtimeSignalPipeline:
         if bbox is None:
             return self._result_face_lost()
 
-        rgb      = self._extract_rgb(frame, bbox)
-        sub_rgbs = self._extract_sub_roi_rgbs(frame, bbox)  # per-region (new)
+        landmarks = self._face_detector.get_landmarks()
+
+        rgb      = self._extract_rgb(frame, bbox, landmarks=landmarks)
+        sub_rgbs = self._extract_sub_roi_rgbs(frame, bbox, landmarks=landmarks)  # per-region (new)
 
         if not self._push_to_buffer(rgb, ts, sub_rgbs=sub_rgbs, bbox=bbox):
-            return self._result_artifact(rgb, bbox)
+            return self._result_artifact(rgb, bbox, landmarks=landmarks)
 
         if not self._buffer.is_ready():
-            return self._result_buffering(rgb, bbox)
+            return self._result_buffering(rgb, bbox, landmarks=landmarks)
 
         rgb_resampled, effective_fps = self._buffer.get_resampled_window()
         bvp = self._run_rppg(rgb_resampled, effective_fps)
@@ -252,7 +268,10 @@ class RealtimeSignalPipeline:
         c_state = self._cached_metrics.get('state', "ACCEPTED")
         c_reasons = self._cached_metrics.get('reasons', [])
 
-        return self._result_ok(bvp, sqi, effective_fps, rgb_resampled, rgb, bbox, c_metrics, c_state, c_reasons)
+        return self._result_ok(
+            bvp, sqi, effective_fps, rgb_resampled, rgb, bbox,
+            c_metrics, c_state, c_reasons, landmarks=landmarks
+        )
 
     def reset(self) -> None:
         """Reset toàn bộ pipeline về trạng thái ban đầu."""
@@ -353,15 +372,31 @@ class RealtimeSignalPipeline:
     # Private — mỗi method làm đúng 1 bước trong pipeline
     # ──────────────────────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _build_face_detector(cfg: FaceDetectorConfig) -> BaseFaceDetector:
+        if cfg.detector_backend == "mediapipe":
+            return MediaPipeFaceDetector(config=cfg)
+        return HaarCascadeFaceDetector(config=cfg)
+
     def _detect_face(self, frame: np.ndarray) -> Optional[tuple]:
         return self._face_detector.detect(frame)
 
-    def _extract_rgb(self, frame: np.ndarray, bbox: tuple) -> np.ndarray:
-        return self._roi_extractor.extract_mean_rgb(frame, bbox)
+    def _extract_rgb(
+        self,
+        frame: np.ndarray,
+        bbox: tuple,
+        landmarks: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        return self._roi_extractor.extract_mean_rgb(frame, bbox, landmarks=landmarks)
 
-    def _extract_sub_roi_rgbs(self, frame: np.ndarray, bbox: tuple) -> SubROIResult:
+    def _extract_sub_roi_rgbs(
+        self,
+        frame: np.ndarray,
+        bbox: tuple,
+        landmarks: Optional[np.ndarray] = None,
+    ) -> SubROIResult:
         """Return per-region RGB vectors (forehead, left_cheek, right_cheek)."""
-        return self._roi_extractor.extract_sub_roi_rgbs(frame, bbox)
+        return self._roi_extractor.extract_sub_roi_rgbs(frame, bbox, landmarks=landmarks)
 
     def _push_to_buffer(
         self,
@@ -395,7 +430,12 @@ class RealtimeSignalPipeline:
             method_version = self._rppg_method.version,
         )
 
-    def _result_artifact(self, rgb: np.ndarray, bbox: tuple) -> FrameResult:
+    def _result_artifact(
+        self,
+        rgb: np.ndarray,
+        bbox: tuple,
+        landmarks: Optional[np.ndarray] = None,
+    ) -> FrameResult:
         return FrameResult(
             is_ready       = False,
             status         = "ARTIFACT",
@@ -403,13 +443,19 @@ class RealtimeSignalPipeline:
             progress       = self._buffer.get_progress(),
             raw_rgb        = rgb,
             bbox           = bbox,
+            landmarks      = landmarks,
             frame_count    = self._frame_count,
             artifact_count = self._buffer.artifact_count,
             method_name    = self._rppg_method.name,
             method_version = self._rppg_method.version,
         )
 
-    def _result_buffering(self, rgb: np.ndarray, bbox: tuple) -> FrameResult:
+    def _result_buffering(
+        self,
+        rgb: np.ndarray,
+        bbox: tuple,
+        landmarks: Optional[np.ndarray] = None,
+    ) -> FrameResult:
         return FrameResult(
             is_ready       = False,
             status         = "BUFFERING",
@@ -417,6 +463,7 @@ class RealtimeSignalPipeline:
             progress       = self._buffer.get_progress(),
             raw_rgb        = rgb,
             bbox           = bbox,
+            landmarks      = landmarks,
             frame_count    = self._frame_count,
             artifact_count = self._buffer.artifact_count,
             method_name    = self._rppg_method.name,
@@ -434,6 +481,7 @@ class RealtimeSignalPipeline:
         quality_metrics: dict = None,
         quality_state:  str = None,
         quality_reasons: list = None,
+        landmarks:     Optional[np.ndarray] = None,
     ) -> FrameResult:
         status = "OK" if sqi >= self._SQI_THRESHOLD else "LOW_QUALITY"
         meta   = self._rppg_method.get_metadata()
@@ -447,6 +495,7 @@ class RealtimeSignalPipeline:
             progress       = self._buffer.get_progress(),
             raw_rgb        = raw_rgb,
             bbox           = bbox,
+            landmarks      = landmarks,
             frame_count    = self._frame_count,
             artifact_count = self._buffer.artifact_count,
             method_name    = meta.get("method", self._rppg_method.name),
