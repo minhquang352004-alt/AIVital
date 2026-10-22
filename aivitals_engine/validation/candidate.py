@@ -14,6 +14,7 @@ class VitalCandidate:
     missing_ratio: float = 0.0
     failure_reason: str | None = None
     roi_values: tuple[float, ...] = ()
+    roi_agreement: float | None = None
 
 
 @dataclass(frozen=True)

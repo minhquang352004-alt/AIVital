@@ -12,7 +12,7 @@ from aivitals_engine.integration.frontend_mapper import (
     to_measurement_result,
     to_validation_rows,
 )
-from aivitals_engine.integration.realtime_vitals import RealtimeVitalsConfig, RealtimeVitalsEngine
+from aivitals_engine.integration.realtime_vitals import RealtimeVitalsConfig, RealtimeVitalsEngine, roi_agreement
 from aivitals_engine.integration.vitals_service import VitalsService
 from aivitals_engine.signal_pipeline_realtime import FrameResult
 from aivitals_engine.validation.validator import VitalsValidator
@@ -147,3 +147,10 @@ def test_realtime_engine_reset(recording):
     engine.reset()
     assert engine.latest_result is None
     assert engine.missing_ratio() == 0.0
+
+
+def test_roi_agreement_comes_from_engine_quality_metrics():
+    frame = FrameResult(quality_metrics={"r_mean": 0.21})
+    assert roi_agreement(frame) == pytest.approx(0.21)
+    assert roi_agreement(FrameResult()) is None
+    assert roi_agreement(FrameResult(quality_metrics={"r_mean": float("nan")})) is None

@@ -29,6 +29,7 @@ class BVPWindow:
     missing_ratio: float = 0.0
     raw_samples: np.ndarray | None = None
     roi_samples: Mapping[str, np.ndarray] = field(default_factory=dict)
+    roi_agreement: float | None = None
 
     def __post_init__(self) -> None:
         samples = as_finite_vector(self.samples, "samples")
@@ -36,6 +37,8 @@ class BVPWindow:
             raise ValueError("sampling_rate_hz phải lớn hơn 0")
         validate_unit_interval(self.missing_ratio, "missing_ratio")
         validate_unit_interval(self.signal_quality, "signal_quality")
+        if self.roi_agreement is not None and not -1.0 <= self.roi_agreement <= 1.0:
+            raise ValueError("roi_agreement phải nằm trong khoảng [-1, 1]")
         object.__setattr__(self, "samples", samples)
         object.__setattr__(self, "raw_samples", self._companion(self.raw_samples, "raw_samples", samples.size))
         roi_samples = {

@@ -79,3 +79,16 @@ def test_session_reset(clean_window):
     assert service.active_sessions() == ["session-a"]
     assert service.reset_session("session-a")
     assert not service.reset_session("session-a")
+
+
+def test_low_roi_agreement_flags_heart_rate(clean_window):
+    window, _ = clean_window
+    result = VitalsService().compute(replace(window, roi_agreement=0.1), "roi-agreement")
+    heart_rate = result.find_vital(VitalCode.HEART_RATE)
+    assert heart_rate.status is ResultStatus.BAD
+    assert IssueCode.ROI_SIGNAL_DISAGREEMENT in [issue.code for issue in heart_rate.issues]
+
+
+def test_roi_agreement_must_be_a_correlation():
+    with pytest.raises(ValueError):
+        BVPWindow(np.zeros(300), 30.0, 0.0, "POS", "1.0.0", roi_agreement=1.5)

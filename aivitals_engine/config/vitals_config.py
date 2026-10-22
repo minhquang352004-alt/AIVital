@@ -113,11 +113,12 @@ def default_physiological_ranges() -> dict[VitalCode, PhysiologicalRange]:
 @dataclass(frozen=True)
 class ValidationConfig:
     signal_quality_ok: float = 0.6
-    signal_quality_invalid: float = 0.3
+    signal_quality_invalid: float = 0.4
     confidence_ok: float = 0.6
     confidence_invalid: float = 0.3
     missing_ratio_ok: float = 0.1
     missing_ratio_invalid: float = 0.3
+    roi_agreement_warning: float = 0.35
     min_values_for_stability: int = 4
     min_window_seconds: Mapping[VitalCode, float] = field(default_factory=default_min_window_seconds)
     ranges: Mapping[VitalCode, PhysiologicalRange] = field(default_factory=default_physiological_ranges)
