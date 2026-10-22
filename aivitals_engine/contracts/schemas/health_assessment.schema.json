@@ -1,0 +1,182 @@
+{
+  "$defs": {
+    "EvidenceLevel": {
+      "enum": [
+        "established",
+        "promising",
+        "insufficient",
+        "not_recommended"
+      ],
+      "title": "EvidenceLevel",
+      "type": "string"
+    },
+    "FindingSeverity": {
+      "enum": [
+        "info",
+        "attention"
+      ],
+      "title": "FindingSeverity",
+      "type": "string"
+    },
+    "HealthFinding": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "metric": {
+          "$ref": "#/$defs/VitalCode"
+        },
+        "observed_value": {
+          "title": "Observed Value",
+          "type": "number"
+        },
+        "unit": {
+          "title": "Unit",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/FindingSeverity"
+        },
+        "evidence_level": {
+          "$ref": "#/$defs/EvidenceLevel"
+        },
+        "interpretation": {
+          "title": "Interpretation",
+          "type": "string"
+        },
+        "caution": {
+          "title": "Caution",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "metric",
+        "observed_value",
+        "unit",
+        "severity",
+        "evidence_level",
+        "interpretation",
+        "caution"
+      ],
+      "title": "HealthFinding",
+      "type": "object"
+    },
+    "ModelInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "checksum_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checksum Sha256"
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "title": "ModelInfo",
+      "type": "object"
+    },
+    "VitalCode": {
+      "enum": [
+        "heart_rate",
+        "hrv_rmssd",
+        "hrv_sdnn",
+        "hrv_mean_ibi",
+        "respiratory_rate"
+      ],
+      "title": "VitalCode",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "assessment_id": {
+      "title": "Assessment Id",
+      "type": "string"
+    },
+    "source_result_id": {
+      "title": "Source Result Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "intended_use": {
+      "const": "wellness_screening_assist",
+      "default": "wellness_screening_assist",
+      "title": "Intended Use",
+      "type": "string"
+    },
+    "is_diagnosis": {
+      "const": false,
+      "default": false,
+      "title": "Is Diagnosis",
+      "type": "boolean"
+    },
+    "ruleset": {
+      "$ref": "#/$defs/ModelInfo"
+    },
+    "knowledge_version": {
+      "title": "Knowledge Version",
+      "type": "string"
+    },
+    "review_status": {
+      "title": "Review Status",
+      "type": "string"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/HealthFinding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "excluded_metrics": {
+      "items": {
+        "$ref": "#/$defs/VitalCode"
+      },
+      "title": "Excluded Metrics",
+      "type": "array"
+    },
+    "disclaimer": {
+      "title": "Disclaimer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "source_result_id",
+    "created_at",
+    "ruleset",
+    "knowledge_version",
+    "review_status",
+    "findings",
+    "excluded_metrics",
+    "disclaimer"
+  ],
+  "title": "HealthAssessment",
+  "type": "object"
+}

@@ -19,6 +19,13 @@ DROPPED_FRAME_STATUSES = frozenset({"FACE_LOST", "ARTIFACT"})
 GATE_REJECTED = "REJECTED"
 
 
+def roi_agreement(frame: FrameResult) -> Optional[float]:
+    value = (frame.quality_metrics or {}).get("r_mean")
+    if value is None or not np.isfinite(value):
+        return None
+    return float(np.clip(value, -1.0, 1.0))
+
+
 @dataclass(frozen=True)
 class RealtimeVitalsConfig:
     long_window_sec: float = 60.0
@@ -118,6 +125,7 @@ class RealtimeVitalsEngine:
             signal_quality=float(np.clip(frame.quality_sqi, 0.0, 1.0)),
             missing_ratio=self.missing_ratio(),
             raw_samples=detrend_signal(green_intensity(rgb)),
+            roi_agreement=roi_agreement(frame),
         )
 
     def missing_ratio(self) -> float:

@@ -39,7 +39,8 @@
 ## 3. Quy tắc trạng thái
 
 - Có issue `ERROR` → `INVALID`, có `WARNING` → `BAD`, không có → `OK`.
-- 14 mã issue trong `validation/issue_codes.py`: `COMPUTATION_FAILED`, `WINDOW_TOO_SHORT`, `MISSING_DATA_HIGH`, `MISSING_DATA_EXCESSIVE`, `SIGNAL_QUALITY_LOW`, `SIGNAL_QUALITY_UNUSABLE`, `OUT_OF_PHYSIOLOGICAL_RANGE`, `SUDDEN_JUMP`, `TEMPORAL_UNSTABLE`, `CROSS_ROI_INCONSISTENT`, `LOW_CONFIDENCE`, `VERY_LOW_CONFIDENCE`, `MISSING_FEATURES`, `PULSE_PRESSURE_INVALID`.
+- 16 mã issue trong `validation/issue_codes.py`: `COMPUTATION_FAILED`, `WINDOW_TOO_SHORT`, `MISSING_DATA_HIGH`, `MISSING_DATA_EXCESSIVE`, `SIGNAL_QUALITY_LOW`, `SIGNAL_QUALITY_UNUSABLE`, `OUT_OF_PHYSIOLOGICAL_RANGE`, `SUDDEN_JUMP`, `TEMPORAL_UNSTABLE`, `CROSS_ROI_INCONSISTENT`, `ROI_SIGNAL_DISAGREEMENT`, `LOW_CONFIDENCE`, `VERY_LOW_CONFIDENCE`, `MISSING_FEATURES`, `PULSE_PRESSURE_INVALID`, `FEATURES_OUT_OF_TRAINING_RANGE`.
+- Ngưỡng chất lượng (Tuần 7, theo Engine Benchmark của Khang): SQI < 0,4 → `SIGNAL_QUALITY_UNUSABLE` (INVALID), SQI < 0,6 → `SIGNAL_QUALITY_LOW` (BAD), `r_mean` < 0,35 → `ROI_SIGNAL_DISAGREEMENT` (BAD).
 - Khi một chỉ số không tính được, `details.reason` ghi lý do từ `vitals/failures.py` (ví dụ `WINDOW_TOO_SHORT`, `LOW_SIGNAL_TO_NOISE`).
 - Khoảng sinh lý hợp lệ (`config/vitals_config.py`): HR 40–180 bpm, RMSSD 5–250 ms, SDNN 5–300 ms, Mean IBI 330–1500 ms, RR 6–30 nhịp thở/phút.
 - Cửa sổ tối thiểu: HR 6 giây (phân tích 10 giây cuối), HRV và RR 30 giây.

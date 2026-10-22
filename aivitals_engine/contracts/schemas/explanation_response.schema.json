@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "ExplanationKind": {
+      "enum": [
+        "report",
+        "question",
+        "trend_summary"
+      ],
+      "title": "ExplanationKind",
+      "type": "string"
+    },
+    "GuardViolation": {
+      "enum": [
+        "EMPTY_OUTPUT",
+        "UNVERIFIED_NUMBER",
+        "DIAGNOSTIC_CLAIM"
+      ],
+      "title": "GuardViolation",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "explanation_id": {
+      "title": "Explanation Id",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/ExplanationKind"
+    },
+    "source_result_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Source Result Ids",
+      "type": "array"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    },
+    "guard_passed": {
+      "title": "Guard Passed",
+      "type": "boolean"
+    },
+    "violations": {
+      "items": {
+        "$ref": "#/$defs/GuardViolation"
+      },
+      "title": "Violations",
+      "type": "array"
+    },
+    "llm_model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Llm Model"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "disclaimer": {
+      "title": "Disclaimer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "source_result_ids",
+    "text",
+    "guard_passed",
+    "violations",
+    "llm_model",
+    "created_at",
+    "disclaimer"
+  ],
+  "title": "ExplanationResponse",
+  "type": "object"
+}

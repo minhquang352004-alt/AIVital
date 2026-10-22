@@ -1,0 +1,48 @@
+{
+  "assessment_id": "00000000-0000-0000-0000-000000000002",
+  "source_result_id": "00000000-0000-0000-0000-000000000001",
+  "created_at": "2026-01-01T08:00:30Z",
+  "intended_use": "wellness_screening_assist",
+  "is_diagnosis": false,
+  "ruleset": {
+    "name": "wellness_rules",
+    "version": "0.1.0",
+    "checksum_sha256": null
+  },
+  "knowledge_version": "0.1.0-draft",
+  "review_status": "pending_medical_review",
+  "findings": [
+    {
+      "code": "resting_heart_rate_within_typical_range",
+      "metric": "heart_rate",
+      "observed_value": 72.8,
+      "unit": "bpm",
+      "severity": "info",
+      "evidence_level": "established",
+      "interpretation": "Nhịp tim lúc nghỉ nằm trong khoảng thường gặp ở người trưởng thành (khoảng 60–100 nhịp/phút).",
+      "caution": "Nhịp tim thay đổi theo vận động, cảm xúc, cà phê, thuốc và điều kiện đo."
+    },
+    {
+      "code": "respiratory_rate_within_typical_range",
+      "metric": "respiratory_rate",
+      "observed_value": 15.0,
+      "unit": "brpm",
+      "severity": "info",
+      "evidence_level": "established",
+      "interpretation": "Nhịp thở lúc nghỉ nằm trong khoảng thường gặp ở người trưởng thành (khoảng 12–20 lần/phút).",
+      "caution": "Nhịp thở ước tính từ camera nhạy với chuyển động và cách ngồi khi đo."
+    },
+    {
+      "code": "hrv_single_measurement_context",
+      "metric": "hrv_rmssd",
+      "observed_value": 43.7,
+      "unit": "ms",
+      "severity": "info",
+      "evidence_level": "insufficient",
+      "interpretation": "Biến thiên nhịp tim (HRV) trong một lần đo ngắn chỉ phản ánh trạng thái tại thời điểm đo.",
+      "caution": "HRV khác nhau nhiều giữa các cá nhân; nên theo dõi xu hướng của chính bạn qua nhiều lần đo trong cùng điều kiện thay vì so với ngưỡng chung."
+    }
+  ],
+  "excluded_metrics": [],
+  "disclaimer": "Kết quả chỉ mang tính tham khảo cho mục đích theo dõi sức khỏe tổng quát (wellness), không phải chẩn đoán y khoa và không thay thế thiết bị đo hoặc chuyên gia y tế."
+}
