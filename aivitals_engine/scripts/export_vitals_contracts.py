@@ -12,6 +12,8 @@ if PROJECT_ROOT not in sys.path:
 
 from aivitals_engine.benchmark.synthetic import synthesize_bvp_window
 from aivitals_engine.contracts.result import VitalsResult
+from aivitals_engine.explanation.service import ExplanationResponse
+from aivitals_engine.health.assessment import HealthAssessment, HealthAssessmentService
 from aivitals_engine.health.risk_model import HealthRiskOutput
 from aivitals_engine.integration.frontend_mapper import to_measurement_result
 from aivitals_engine.integration.vitals_service import VitalsService
@@ -30,16 +32,24 @@ def build_example_result() -> VitalsResult:
     return result.model_copy(update={"result_id": "00000000-0000-0000-0000-000000000001"})
 
 
+def build_example_assessment(result: VitalsResult) -> HealthAssessment:
+    assessment = HealthAssessmentService(clock=lambda: EXAMPLE_TIME).assess(result)
+    return assessment.model_copy(update={"assessment_id": "00000000-0000-0000-0000-000000000002"})
+
+
 def build_contracts() -> dict[str, object]:
     example = build_example_result()
     return {
         "vital_result.schema.json": VitalsResult.model_json_schema(),
+        "health_assessment.schema.json": HealthAssessment.model_json_schema(),
+        "explanation_response.schema.json": ExplanationResponse.model_json_schema(),
         "blood_pressure_estimate.schema.json": BloodPressureEstimate.model_json_schema(),
         "health_risk_output.schema.json": HealthRiskOutput.model_json_schema(),
         "measurement_states.json": export_state_contract(),
         "deep_model_adapter_plan.json": [asdict(spec) for spec in DEEP_MODEL_SPECS.values()],
         "example_vitals_result.json": example.model_dump(mode="json"),
         "example_measurement_result.json": to_measurement_result(example, EXAMPLE_ID),
+        "example_health_assessment.json": build_example_assessment(example).model_dump(mode="json"),
     }
 
 

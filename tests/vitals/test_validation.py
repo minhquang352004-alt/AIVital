@@ -38,6 +38,23 @@ def test_unusable_quality_is_invalid():
     assert not outcome.is_accepted
 
 
+def test_sqi_threshold_from_engine_benchmark():
+    assert validator.validate(candidate(signal_quality=0.39)).status is ResultStatus.INVALID
+    assert validator.validate(candidate(signal_quality=0.40)).status is ResultStatus.BAD
+
+
+def test_low_roi_agreement_is_bad():
+    outcome = validator.validate(candidate(roi_agreement=0.2))
+    assert outcome.status is ResultStatus.BAD
+    assert outcome.issue_codes() == [IssueCode.ROI_SIGNAL_DISAGREEMENT]
+    assert outcome.issues[0].details == {"roi_agreement": 0.2, "threshold": 0.35}
+
+
+def test_roi_agreement_at_threshold_is_ok():
+    assert validator.validate(candidate(roi_agreement=0.35)).status is ResultStatus.OK
+    assert validator.validate(candidate(roi_agreement=None)).status is ResultStatus.OK
+
+
 def test_missing_value_is_invalid():
     outcome = validator.validate(candidate(value=None, confidence=0.0, failure_reason="NO_SPECTRAL_PEAK"))
     assert outcome.status is ResultStatus.INVALID

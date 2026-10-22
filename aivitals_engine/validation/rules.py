@@ -168,6 +168,18 @@ class CrossRoiConsistencyRule:
 
 
 @dataclass(frozen=True)
+class RoiAgreementRule:
+    warning_threshold: float
+
+    def evaluate(self, candidate: VitalCandidate, context: ValidationContext) -> list[ValidationIssue]:
+        agreement = candidate.roi_agreement
+        if candidate.value is None or agreement is None or agreement >= self.warning_threshold:
+            return []
+        message = "Tín hiệu vùng trán và má không tương quan với nhau"
+        return [warning(IssueCode.ROI_SIGNAL_DISAGREEMENT, message, roi_agreement=agreement, threshold=self.warning_threshold)]
+
+
+@dataclass(frozen=True)
 class ConfidenceRule:
     ok_threshold: float
     invalid_threshold: float
@@ -193,5 +205,6 @@ def build_default_rules(config: ValidationConfig) -> tuple[ValidationRule, ...]:
         SuddenJumpRule(config.jump_tolerance, config.jump_rate_per_second),
         TemporalStabilityRule(config.stability_std_limit, config.min_values_for_stability),
         CrossRoiConsistencyRule(config.cross_roi_spread_limit),
+        RoiAgreementRule(config.roi_agreement_warning),
         ConfidenceRule(config.confidence_ok, config.confidence_invalid),
     )
