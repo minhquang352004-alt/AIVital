@@ -118,3 +118,37 @@ if features is not None:
 * Toàn bộ 134 unit và integration tests trong `tests/features/` chạy đạt 100% (`PASSED`).
 * Latency trung vị: **$2.69\text{ ms}$** (dưới ngân sách tối đa $3.0\text{ ms}$).
 * Script đo kiểm hiệu năng: `python scripts/benchmarks/bench_feature_extractor.py`.
+
+
+---
+
+## 9. Điều kiện hợp lệ của đặc trưng (Tuần 7)
+
+`extract()` không đổi: luôn trả `BVPFeatures` (field không tính được là NaN). Từ Tuần 7, để chỉ tạo vector từ tín hiệu đủ tốt, dùng:
+
+```python
+from aivitals_engine.features import BVPFeatureExtractor
+
+res = BVPFeatureExtractor().extract_checked(
+    bvp, fs, sqi=sqi, warnings=frame_result.warnings, artifact_ratio=ratio,
+    metadata={"method": "POS", "method_version": "1.0"},
+)
+if res.valid:
+    X = res.features.to_numpy()
+else:
+    print(res.reasons)          # vd. ("LOW_SQI", "BLOCKING_WARNING")
+# Realtime: pipeline.extract_features_checked() -> GuardedFeatures | None (None nếu buffer chưa ready)
+```
+
+| Lý do từ chối | Ngưỡng mặc định (`FeatureGuardConfig`) |
+|---|---|
+| `SIGNAL_TOO_SHORT` | cửa sổ < 4.0 s |
+| `LOW_FS` | fs < 15 Hz |
+| `SIGNAL_DEGENERATE` | tín hiệu rỗng / phẳng / toàn NaN |
+| `NON_FINITE_SAMPLES` | có NaN/inf trong BVP |
+| `LOW_SQI` | SQI < 0.40 |
+| `BLOCKING_WARNING` | có cảnh báo mức block (vd. `MOTION_HIGH`) |
+| `HIGH_ARTIFACT` | tỷ lệ frame bị loại > 0.25 |
+| `TOO_FEW_BEATS` | số nhịp hợp lệ < 3 |
+
+Khi không đạt, `features` là `None` (không có vector). `validity.metadata` luôn chứa `fs`, `sqi`, `artifact_ratio`, `signal_warnings`, và (nếu đã trích xuất) `valid_beat_count` để truy vết. `BVPFeatures` và thứ tự vector **không thay đổi** (`_FEATURE_VECTOR_VERSION` giữ nguyên "1.0"). Xem [`ROBUSTNESS.md`](ROBUSTNESS.md).

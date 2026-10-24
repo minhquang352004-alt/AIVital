@@ -25,13 +25,19 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 import numpy as np
 
 from aivitals_engine.features._base_extractor import PartialFeatureExtractor
 from aivitals_engine.features.amplitude import AmplitudeExtractor
 from aivitals_engine.features.config import BVPFeaturesConfig
+from aivitals_engine.features.guard import (
+    FeatureGuardConfig,
+    FeatureValidity,
+    GuardedFeatures,
+    check_signal,
+)
 from aivitals_engine.features.morphology import MorphologyExtractor
 from aivitals_engine.features.schema import BVPFeatures
 from aivitals_engine.features.segmentation import BeatSegmenter
@@ -113,6 +119,52 @@ class BVPFeatureExtractor:
             )
 
         return self._build_features(merged)
+
+    def extract_checked(
+        self,
+        bvp: np.ndarray,
+        fs: float = 30.0,
+        *,
+        sqi: Optional[float] = None,
+        warnings: Optional[Sequence[str]] = None,
+        artifact_ratio: Optional[float] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
+        guard_config: Optional[FeatureGuardConfig] = None,
+    ) -> GuardedFeatures:
+        """
+        Trích xuất đặc trưng CÓ cổng chất lượng (Tuần 7).
+
+        Chỉ tạo `BVPFeatures` khi tín hiệu đạt guard (độ dài, fs, hữu hạn, SQI,
+        cảnh báo BLOCK, artifact) và tìm đủ số nhịp hợp lệ. Nếu không đạt,
+        ``features`` là None và ``reasons`` cho biết lý do.
+
+        `extract()` giữ nguyên hành vi cũ (luôn trả BVPFeatures, field thiếu là NaN).
+
+        Args:
+            bvp, fs:        như `extract()`.
+            sqi:            SQI của cửa sổ (None → bỏ qua kiểm tra).
+            warnings:       Danh sách mã cảnh báo tín hiệu (FrameResult.warnings).
+            artifact_ratio: Tỷ lệ frame bị loại trong buffer.
+            metadata:       Thông tin truy vết thêm (method, version, ...) — được
+                            sao chép vào `validity.metadata`.
+            guard_config:   Ngưỡng tùy biến.
+        """
+        cfg = guard_config or FeatureGuardConfig()
+        meta: dict = dict(metadata or {})
+        meta.update({"fs": float(fs), "sqi": sqi, "artifact_ratio": artifact_ratio,
+                     "signal_warnings": tuple(warnings or ())})
+
+        reasons = list(check_signal(
+            bvp, fs, sqi=sqi, warnings=warnings, artifact_ratio=artifact_ratio, config=cfg,
+        ))
+        if reasons:
+            return GuardedFeatures(None, FeatureValidity(False, tuple(reasons), meta))
+
+        features = self.extract(bvp, fs)
+        meta["valid_beat_count"] = features.valid_beat_count
+        if features.valid_beat_count < cfg.min_valid_beats:
+            return GuardedFeatures(None, FeatureValidity(False, ("TOO_FEW_BEATS",), meta))
+        return GuardedFeatures(features, FeatureValidity(True, (), meta))
 
     # ── Private builder ────────────────────────────────────────────────────────
 

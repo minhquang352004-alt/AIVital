@@ -13,6 +13,11 @@ Public API:
 """
 from aivitals_engine.features.config import BVPFeaturesConfig
 from aivitals_engine.features.extractor import BVPFeatureExtractor
+from aivitals_engine.features.guard import (
+    FeatureGuardConfig,
+    FeatureValidity,
+    GuardedFeatures,
+)
 from aivitals_engine.features.schema import BVPFeatures
 from aivitals_engine.features.segmentation import BeatSegmenter, SingleBeat
 
@@ -21,5 +26,8 @@ __all__ = [
     "BVPFeatureExtractor",
     "BVPFeaturesConfig",
     "BeatSegmenter",
+    "FeatureGuardConfig",
+    "FeatureValidity",
+    "GuardedFeatures",
     "SingleBeat",
 ]
