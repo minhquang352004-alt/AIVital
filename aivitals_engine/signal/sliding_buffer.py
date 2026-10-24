@@ -43,6 +43,7 @@ class SlidingWindowBuffer:
         min_sec:            float          = SignalConfig().min_window_sec,
         artifact_threshold: Optional[float] = SignalConfig().artifact_threshold,
         time_gap_threshold: float          = SignalConfig().time_gap_threshold_sec,
+        max_consecutive_artifacts: Optional[int] = SignalConfig().max_consecutive_artifacts,
         # Kept for backward compatibility but unused (resampling is done externally)
         lowcut:             float          = SignalConfig().low_cutoff_hz,
         highcut:            float          = SignalConfig().high_cutoff_hz,
@@ -54,11 +55,15 @@ class SlidingWindowBuffer:
         self.min_sec            = float(min_sec)
         self.artifact_threshold = artifact_threshold
         self.time_gap_threshold = float(time_gap_threshold)
+        self.max_consecutive_artifacts = int(max_consecutive_artifacts) if max_consecutive_artifacts is not None else None
 
         max_frames = int(np.ceil(self.window_sec * self.target_fps))
         self._rgb_buffer:  deque = deque(maxlen=max_frames)
         self._timestamps:  deque = deque(maxlen=max_frames)
         self._artifact_count: int = 0
+        self._consecutive_artifacts: int = 0
+        self._gap_reset_count: int = 0   # Số lần buffer reset do đứt timestamp (Week 7)
+        self._adapt_count: int = 0       # Số lần tự thích nghi bước nhảy ánh sáng (Week 7)
 
         # Per-region RGB buffers (synchronized with _rgb_buffer).
         # Populated only when sub_rgbs is passed to push(); stay empty otherwise.
@@ -100,10 +105,18 @@ class SlidingWindowBuffer:
 
         if self._is_time_gap(ts):
             self.reset()
+            self._gap_reset_count += 1
 
         if self._is_artifact(rgb_arr):
             self._artifact_count += 1
+            self._consecutive_artifacts += 1
+            if self.max_consecutive_artifacts is not None and self._consecutive_artifacts >= self.max_consecutive_artifacts:
+                self._adapt_to_lighting_change(rgb_arr, ts, sub_rgbs=sub_rgbs, bbox=bbox)
+                self._consecutive_artifacts = 0
+                return True
             return False
+
+        self._consecutive_artifacts = 0
 
         self._rgb_buffer.append(rgb_arr)
         self._timestamps.append(ts)
@@ -219,16 +232,60 @@ class SlidingWindowBuffer:
         self._rgb_buffer.clear()
         self._timestamps.clear()
         self._artifact_count = 0
+        self._consecutive_artifacts = 0
         # Sub-ROI buffers must be cleared atomically with the main buffer.
         self._forehead_buf.clear()
         self._left_cheek_buf.clear()
         self._right_cheek_buf.clear()
         self._bbox_buf.clear()
 
+    def _adapt_to_lighting_change(
+        self,
+        rgb_arr:   np.ndarray,
+        ts:        float,
+        sub_rgbs:  Any             = None,
+        bbox:      Optional[tuple] = None,
+    ) -> None:
+        """
+        Tự động thích nghi khi phát hiện bước nhảy ánh sáng thực tế.
+        Xóa lịch sử buffer mang baseline lệch và nạp frame mới làm mốc
+        bắt đầu tích lũy lại, tránh kẹt vĩnh viễn ở trạng thái ARTIFACT.
+        """
+        self._adapt_count += 1
+        self._rgb_buffer.clear()
+        self._timestamps.clear()
+        self._forehead_buf.clear()
+        self._left_cheek_buf.clear()
+        self._right_cheek_buf.clear()
+        self._bbox_buf.clear()
+
+        self._rgb_buffer.append(rgb_arr)
+        self._timestamps.append(ts)
+
+        if bbox is not None:
+            self._bbox_buf.append(np.asarray(bbox, dtype=np.float64))
+        else:
+            self._bbox_buf.append(np.array([0, 0, 0, 0], dtype=np.float64))
+
+        if sub_rgbs is not None:
+            self._forehead_buf.append(np.asarray(sub_rgbs.forehead,    dtype=np.float64))
+            self._left_cheek_buf.append(np.asarray(sub_rgbs.left_cheek,  dtype=np.float64))
+            self._right_cheek_buf.append(np.asarray(sub_rgbs.right_cheek, dtype=np.float64))
+
     @property
     def size(self) -> int:
         """Số frame hiện có trong buffer."""
         return len(self._rgb_buffer)
+
+    @property
+    def gap_reset_count(self) -> int:
+        """Số lần buffer bị reset do đứt đoạn timestamp (không bị xóa bởi reset())."""
+        return self._gap_reset_count
+
+    @property
+    def adapt_count(self) -> int:
+        """Số lần buffer tự thích nghi sau bước nhảy ánh sáng (không bị xóa bởi reset())."""
+        return self._adapt_count
 
     @property
     def artifact_count(self) -> int:
