@@ -127,3 +127,37 @@ def test_contract_endpoints_and_unknown_route(client):
     unknown = client.get("/api/v1/unknown")
     assert unknown.status_code == 404
     assert unknown.json()["success"] is False
+
+
+def test_compute_vitals_forwards_signal_warnings(client, clean_window):
+    window, _ = clean_window
+    payload = {**window_payload(window, "api-motion"), "signal_warnings": ["MOTION_HIGH"]}
+    heart_rate = client.post("/api/v1/vitals/compute", json=payload).json()["data"]["vitals"][0]
+    assert heart_rate["status"] == "BAD"
+    assert [issue["code"] for issue in heart_rate["issues"]] == ["SIGNAL_CONDITION_BLOCKING"]
+
+
+def test_compute_vitals_low_sampling_rate_returns_invalid_result(client):
+    payload = {
+        "session_id": "api-low-fs",
+        "samples": [float(value) for value in range(400)],
+        "sampling_rate_hz": 5.0,
+        "start_timestamp": 0.0,
+        "method": "POS",
+        "method_version": "1.0",
+    }
+    response = client.post("/api/v1/vitals/compute", json=payload)
+    assert response.status_code == 200
+    assert response.json()["data"]["status"] == "INVALID"
+
+
+def test_compute_vitals_limits_signal_warnings(client, clean_window):
+    window, _ = clean_window
+    payload = {**window_payload(window), "signal_warnings": ["TOO_DARK"] * 33}
+    assert client.post("/api/v1/vitals/compute", json=payload).status_code == 400
+
+
+def test_validation_check_accepts_signal_warnings(client):
+    payload = {"code": "heart_rate", "value": 72.0, "timestamp": 1.0, "confidence": 0.9, "window_duration_seconds": 10.0}
+    data = client.post("/api/v1/validation/check", json={**payload, "signal_warnings": ["FACE_NOT_FOUND"]}).json()["data"]
+    assert data["status"] == "BAD"

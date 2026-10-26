@@ -15,7 +15,9 @@ Các điểm nối giữa phần của Khoa với Khang, Quang và Hào, đúng 
 | Tín hiệu cho nhịp thở | Cường độ kênh G chưa lọc (BVP của Khang đã lọc 0,75–2,5 Hz nên mất dải hô hấp 0,1–0,5 Hz) | |
 | Tỷ lệ mất khung hình | Tỷ lệ frame `FACE_LOST` / `ARTIFACT` trong 60 giây gần nhất | |
 
-Đầu vào của khối vitals là `BVPWindow` (`contracts/bvp_window.py`): `samples`, `sampling_rate_hz`, `start_timestamp`, `method`, `method_version`, `signal_quality`, `missing_ratio`, `raw_samples`, `roi_samples`, `roi_agreement` (`r_mean` của Khang, từ Tuần 7).
+Đầu vào của khối vitals là `BVPWindow` (`contracts/bvp_window.py`): `samples`, `sampling_rate_hz`, `start_timestamp`, `method`, `method_version`, `signal_quality`, `missing_ratio`, `raw_samples`, `roi_samples`, `roi_agreement` (`r_mean` của Khang, từ Tuần 7), `signal_warnings` (`FrameResult.warnings` của Khang, từ Tuần 8).
+
+Từ Tuần 8, `RealtimeVitalsEngine` dùng `BVPFeatureExtractor.extract_checked()` của Khang: khi guard từ chối (SQI thấp, cảnh báo `block`, thiếu nhịp...), `bvp_features` là `None` và `feature_validity.reasons` ghi lý do, nên mô hình huyết áp không nhận đặc trưng từ tín hiệu xấu. `artifact_ratio` truyền vào guard là `missing_ratio` của cửa sổ (tỷ lệ frame `FACE_LOST` / `ARTIFACT`).
 
 Đặc trưng BVP cho mô hình huyết áp (Tuần 5): `RealtimeVitalsEngine` gọi `BVPFeatureExtractor` của Khang trên cửa sổ dài và đưa 23 đặc trưng vào `build_bp_features()` theo đúng thứ tự `BVPFeatures.feature_names()` (xem `docs/VitalsEngine/BP_HEALTH_MODEL.md`).
 
