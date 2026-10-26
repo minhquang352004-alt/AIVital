@@ -3,6 +3,11 @@ numpy>=1.22.0
 scipy>=1.5.2
 pandas>=1.1.5
 opencv-python>=4.5.2
+mediapipe>=0.10.14
 pydantic>=2.0
 scikit-learn>=1.3
 joblib>=1.3
+
+# Benchmarking & Testing (Dev / QA)
+psutil>=5.9.0
+pytest>=7.4.0
