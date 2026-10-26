@@ -118,6 +118,7 @@ class VitalsService:
             failure_reason=estimate.failure_reason,
             roi_values=self._roi_heart_rates(window),
             roi_agreement=window.roi_agreement,
+            signal_warnings=window.signal_warnings,
         )
         outcome = self._validator.validate(candidate, context_from_tracker(tracker))
         reported = self._track(tracker, candidate, outcome)
@@ -224,6 +225,7 @@ class VitalsService:
             missing_ratio=window.missing_ratio,
             failure_reason=failure_reason,
             roi_agreement=window.roi_agreement,
+            signal_warnings=window.signal_warnings,
         )
         context = context_from_tracker(tracker) if tracker is not None else ValidationContext()
         outcome = self._validator.validate(candidate, context)

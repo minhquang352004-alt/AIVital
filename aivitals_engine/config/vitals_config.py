@@ -51,6 +51,7 @@ class HeartRateConfig:
     band: FrequencyBand = FrequencyBand(0.7, 3.0)
     analysis_window_seconds: float = 10.0
     min_window_seconds: float = 6.0
+    min_sampling_rate_hz: float = 15.0
     spectral_resolution_hz: float = 0.005
     snr_tolerance_hz: float = 0.1
     method_agreement_bpm: float = 5.0
@@ -72,6 +73,7 @@ class HRVConfig:
 class RespiratoryRateConfig:
     band: FrequencyBand = FrequencyBand(0.1, 0.5)
     min_window_seconds: float = 30.0
+    min_sampling_rate_hz: float = 15.0
     resample_hz: float = 4.0
     spectral_resolution_hz: float = 0.002
     snr_tolerance_hz: float = 0.03

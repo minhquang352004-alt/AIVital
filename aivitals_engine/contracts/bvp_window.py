@@ -30,6 +30,7 @@ class BVPWindow:
     raw_samples: np.ndarray | None = None
     roi_samples: Mapping[str, np.ndarray] = field(default_factory=dict)
     roi_agreement: float | None = None
+    signal_warnings: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         samples = as_finite_vector(self.samples, "samples")
@@ -40,6 +41,7 @@ class BVPWindow:
         if self.roi_agreement is not None and not -1.0 <= self.roi_agreement <= 1.0:
             raise ValueError("roi_agreement phải nằm trong khoảng [-1, 1]")
         object.__setattr__(self, "samples", samples)
+        object.__setattr__(self, "signal_warnings", tuple(str(code) for code in self.signal_warnings))
         object.__setattr__(self, "raw_samples", self._companion(self.raw_samples, "raw_samples", samples.size))
         roi_samples = {
             name: self._companion(values, f"roi_samples[{name}]", samples.size)

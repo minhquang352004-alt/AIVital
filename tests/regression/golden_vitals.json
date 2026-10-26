@@ -1,0 +1,274 @@
+{
+  "engine_version": "0.2.0",
+  "algorithms": {
+    "hr_spectral_peak_fusion": "0.1.1",
+    "hrv_time_domain": "0.2.0",
+    "rr_modulation_fusion": "0.1.1"
+  },
+  "cases": {
+    "rest_72bpm": {
+      "heart_rate": {
+        "value": 72.8,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_rmssd": {
+        "value": 43.7,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_sdnn": {
+        "value": 35.8,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_mean_ibi": {
+        "value": 830.6,
+        "status": "OK",
+        "issues": []
+      },
+      "respiratory_rate": {
+        "value": 15.0,
+        "status": "OK",
+        "issues": []
+      }
+    },
+    "low_54bpm": {
+      "heart_rate": {
+        "value": 54.3,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_rmssd": {
+        "value": 49.3,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_sdnn": {
+        "value": 38.9,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_mean_ibi": {
+        "value": 1113.9,
+        "status": "OK",
+        "issues": []
+      },
+      "respiratory_rate": {
+        "value": 11.9,
+        "status": "OK",
+        "issues": []
+      }
+    },
+    "high_118bpm": {
+      "heart_rate": {
+        "value": 116.2,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_rmssd": {
+        "value": 43.0,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_sdnn": {
+        "value": 34.8,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_mean_ibi": {
+        "value": 506.2,
+        "status": "OK",
+        "issues": []
+      },
+      "respiratory_rate": {
+        "value": 19.9,
+        "status": "OK",
+        "issues": []
+      }
+    },
+    "noisy_85bpm": {
+      "heart_rate": {
+        "value": 85.1,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_rmssd": {
+        "value": 94.5,
+        "status": "BAD",
+        "issues": [
+          "LOW_CONFIDENCE"
+        ]
+      },
+      "hrv_sdnn": {
+        "value": 75.7,
+        "status": "BAD",
+        "issues": [
+          "LOW_CONFIDENCE"
+        ]
+      },
+      "hrv_mean_ibi": {
+        "value": 697.3,
+        "status": "BAD",
+        "issues": [
+          "LOW_CONFIDENCE"
+        ]
+      },
+      "respiratory_rate": {
+        "value": 18.1,
+        "status": "OK",
+        "issues": []
+      }
+    },
+    "short_12s": {
+      "heart_rate": {
+        "value": 65.9,
+        "status": "OK",
+        "issues": []
+      },
+      "hrv_rmssd": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "COMPUTATION_FAILED",
+          "WINDOW_TOO_SHORT"
+        ]
+      },
+      "hrv_sdnn": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "COMPUTATION_FAILED",
+          "WINDOW_TOO_SHORT"
+        ]
+      },
+      "hrv_mean_ibi": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "COMPUTATION_FAILED",
+          "WINDOW_TOO_SHORT"
+        ]
+      },
+      "respiratory_rate": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "COMPUTATION_FAILED",
+          "WINDOW_TOO_SHORT"
+        ]
+      }
+    },
+    "low_fs_10hz": {
+      "heart_rate": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "COMPUTATION_FAILED"
+        ]
+      },
+      "hrv_rmssd": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "COMPUTATION_FAILED"
+        ]
+      },
+      "hrv_sdnn": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "COMPUTATION_FAILED"
+        ]
+      },
+      "hrv_mean_ibi": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "COMPUTATION_FAILED"
+        ]
+      },
+      "respiratory_rate": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "COMPUTATION_FAILED"
+        ]
+      }
+    },
+    "low_sqi_035": {
+      "heart_rate": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "SIGNAL_QUALITY_UNUSABLE"
+        ]
+      },
+      "hrv_rmssd": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "SIGNAL_QUALITY_UNUSABLE"
+        ]
+      },
+      "hrv_sdnn": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "SIGNAL_QUALITY_UNUSABLE"
+        ]
+      },
+      "hrv_mean_ibi": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "SIGNAL_QUALITY_UNUSABLE"
+        ]
+      },
+      "respiratory_rate": {
+        "value": null,
+        "status": "INVALID",
+        "issues": [
+          "SIGNAL_QUALITY_UNUSABLE"
+        ]
+      }
+    },
+    "motion_high": {
+      "heart_rate": {
+        "value": 81.2,
+        "status": "BAD",
+        "issues": [
+          "SIGNAL_CONDITION_BLOCKING"
+        ]
+      },
+      "hrv_rmssd": {
+        "value": 42.7,
+        "status": "BAD",
+        "issues": [
+          "SIGNAL_CONDITION_BLOCKING"
+        ]
+      },
+      "hrv_sdnn": {
+        "value": 33.3,
+        "status": "BAD",
+        "issues": [
+          "SIGNAL_CONDITION_BLOCKING"
+        ]
+      },
+      "hrv_mean_ibi": {
+        "value": 752.3,
+        "status": "BAD",
+        "issues": [
+          "SIGNAL_CONDITION_BLOCKING"
+        ]
+      },
+      "respiratory_rate": {
+        "value": 15.9,
+        "status": "BAD",
+        "issues": [
+          "SIGNAL_CONDITION_BLOCKING"
+        ]
+      }
+    }
+  }
+}

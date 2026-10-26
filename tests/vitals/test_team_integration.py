@@ -12,18 +12,30 @@ from aivitals_engine.integration.frontend_mapper import (
     to_measurement_result,
     to_validation_rows,
 )
-from aivitals_engine.integration.realtime_vitals import RealtimeVitalsConfig, RealtimeVitalsEngine, roi_agreement
+from aivitals_engine.integration.realtime_vitals import (
+    RealtimeVitalsConfig,
+    RealtimeVitalsEngine,
+    roi_agreement,
+    signal_warnings,
+)
 from aivitals_engine.integration.vitals_service import VitalsService
 from aivitals_engine.signal_pipeline_realtime import FrameResult
 from aivitals_engine.validation.validator import VitalsValidator
 
 
 class ReplayPipeline:
-    def __init__(self, recording, ready_after_sec: float = 8.0, quality_state: str | None = None) -> None:
+    def __init__(
+        self,
+        recording,
+        ready_after_sec: float = 8.0,
+        quality_state: str | None = None,
+        warnings: list[str] | None = None,
+    ) -> None:
         self._rgb = np.mean(np.stack(list(recording.roi_rgb.values())), axis=0)
         self._start = float(recording.timestamps[0])
         self._ready_after = ready_after_sec
         self._quality_state = quality_state
+        self._warnings = warnings or []
 
     def process_frame(self, frame_index, timestamp):
         ready = timestamp - self._start >= self._ready_after
@@ -35,6 +47,7 @@ class ReplayPipeline:
             raw_rgb=self._rgb[frame_index],
             method_name="POS",
             method_version="1.0",
+            warnings=list(self._warnings),
         )
         if self._quality_state is not None:
             result.quality_state = self._quality_state
@@ -154,3 +167,32 @@ def test_roi_agreement_comes_from_engine_quality_metrics():
     assert roi_agreement(frame) == pytest.approx(0.21)
     assert roi_agreement(FrameResult()) is None
     assert roi_agreement(FrameResult(quality_metrics={"r_mean": float("nan")})) is None
+
+
+def test_signal_warnings_come_from_engine_frame():
+    assert signal_warnings(FrameResult(warnings=["MOTION_HIGH", "TOO_DARK"])) == ("MOTION_HIGH", "TOO_DARK")
+    assert signal_warnings(FrameResult()) == ()
+
+
+def test_realtime_engine_flags_blocking_warning_and_withholds_features(recording):
+    pipeline = ReplayPipeline(recording, warnings=["MOTION_HIGH"])
+    engine = RealtimeVitalsEngine("motion", pipeline=pipeline, config=RealtimeVitalsConfig(update_interval_sec=4.0))
+    updates = replay(engine, recording)
+    assert updates
+    for update in updates:
+        heart_rate = update.vitals.find_vital(VitalCode.HEART_RATE)
+        assert heart_rate.status is ResultStatus.BAD
+        assert "SIGNAL_CONDITION_BLOCKING" in [issue.code for issue in heart_rate.issues]
+        assert update.bvp_features is None
+        assert "BLOCKING_WARNING" in update.feature_validity.reasons
+    assert engine.latest_features is None
+    assert engine.latest_feature_validity.valid is False
+
+
+def test_realtime_engine_keeps_features_for_clean_frames(recording):
+    engine = RealtimeVitalsEngine("clean-features", pipeline=ReplayPipeline(recording), config=RealtimeVitalsConfig(update_interval_sec=4.0))
+    last = replay(engine, recording)[-1]
+    assert last.feature_validity.valid is True
+    assert last.feature_validity.metadata["method"] == "POS"
+    engine.reset()
+    assert engine.latest_feature_validity is None

@@ -15,6 +15,7 @@ class VitalCandidate:
     failure_reason: str | None = None
     roi_values: tuple[float, ...] = ()
     roi_agreement: float | None = None
+    signal_warnings: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
