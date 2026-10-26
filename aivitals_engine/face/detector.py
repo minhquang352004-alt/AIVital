@@ -162,6 +162,8 @@ class HaarCascadeFaceDetector(BaseFaceDetector):
         Returns:
             (x, y, w, h) hoặc None nếu không phát hiện được mặt (và allow_fallback=False).
         """
+        if frame is None or frame.size == 0:
+            return None
         raw_bbox = self._detect_raw(frame)
         if self._smoother is not None:
             return self._smoother.update(raw_bbox)
@@ -313,6 +315,9 @@ class MediaPipeFaceDetector(BaseFaceDetector):
             return None
 
     def detect(self, frame: np.ndarray) -> Optional[Tuple[int, int, int, int]]:
+        if frame is None or frame.size == 0:
+            self._current_landmarks = None
+            return None
         raw_bbox = self._detect_raw(frame)
         if self._smoother is not None:
             return self._smoother.update(raw_bbox)

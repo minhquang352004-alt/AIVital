@@ -24,6 +24,21 @@ class SignalConfig:
     artifact_threshold:      float = 3.5    # Ngưỡng phát hiện đột biến (n × std)
     time_gap_threshold_sec:  float = 0.5    # Ngưỡng phát hiện đứt đoạn thời gian (giây)
 
+    # ── Edge Cases & Robustness (Tuần 7) ──────────────────────────────────────
+    max_consecutive_artifacts: int   = 10     # Ngưỡng tự hồi phục khi ánh sáng đổi bước nhảy
+    max_face_lost_sec:         float = 1.0    # Dung nạp mất mặt tạm thời (micro-dropout)
+    min_luma_acceptable:       float = 40.0   # Ngưỡng tối thiểu ánh sáng môi trường
+    max_luma_acceptable:       float = 225.0  # Ngưỡng tối đa chống cháy sáng / lóa đèn
+    min_face_ratio:            float = 0.12   # Tỷ lệ chiều rộng khuôn mặt tối thiểu so với khung hình
+    luma_smooth_frames:        int   = 7      # Số frame làm mượt (median) luma để tránh cảnh báo nhấp nháy
+    light_window_sec:          float = 2.0    # Cửa sổ đánh giá độ ổn định ánh sáng (giây)
+    light_unstable_cv:         float = 0.10   # Hệ số biến thiên luma (std/mean) vượt mức này → LIGHT_UNSTABLE
+    motion_window_sec:         float = 1.0    # Cửa sổ đo biên độ chuyển động mặt (giây)
+    motion_amp_threshold:      float = 0.12   # Biên độ dịch chuyển tâm mặt / bề rộng mặt vượt mức này → MOTION_HIGH
+    bbox_jump_ratio:           float = 0.60   # Tâm mặt nhảy giữa 2 frame > ratio × bề rộng mặt → coi là đứt ROI
+    min_fps_acceptable:        float = 20.0   # FPS thực tế tối thiểu (khuyến nghị trong ENGINE_BENCHMARK)
+    min_frames_for_fps_check:  int   = 15     # Số frame tối thiểu trong buffer trước khi đánh giá LOW_FPS
+
     # ── SQI & Quality Gate (Tuần 4) ───────────────────────────────────────────
     periodicity_min_bpm:     float = 45.0   # Tần số nhịp tim tối thiểu để xét lag ACF (BPM)
     periodicity_max_bpm:     float = 150.0  # Tần số nhịp tim tối đa để xét lag ACF (BPM)
