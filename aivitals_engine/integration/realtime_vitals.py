@@ -8,7 +8,7 @@ import numpy as np
 from aivitals_engine.benchmark.team_methods import TEAM_METHODS, green_intensity
 from aivitals_engine.contracts.bvp_window import BVPWindow
 from aivitals_engine.contracts.result import VitalsResult
-from aivitals_engine.features import BVPFeatureExtractor, BVPFeatures
+from aivitals_engine.features import BVPFeatureExtractor, BVPFeatures, FeatureValidity
 from aivitals_engine.integration.frontend_mapper import to_measurement_result
 from aivitals_engine.integration.vitals_service import VitalsService
 from aivitals_engine.signal.sliding_buffer import SlidingWindowBuffer
@@ -17,6 +17,17 @@ from aivitals_engine.vitals.preprocess import detrend_signal
 
 DROPPED_FRAME_STATUSES = frozenset({"FACE_LOST", "ARTIFACT"})
 GATE_REJECTED = "REJECTED"
+
+
+def roi_agreement(frame: FrameResult) -> Optional[float]:
+    value = (frame.quality_metrics or {}).get("r_mean")
+    if value is None or not np.isfinite(value):
+        return None
+    return float(np.clip(value, -1.0, 1.0))
+
+
+def signal_warnings(frame: FrameResult) -> tuple[str, ...]:
+    return tuple(str(code) for code in (frame.warnings or ()))
 
 
 @dataclass(frozen=True)
@@ -34,6 +45,7 @@ class RealtimeVitalsUpdate:
     vitals: Optional[VitalsResult] = None
     window_seconds: float = 0.0
     bvp_features: Optional[BVPFeatures] = None
+    feature_validity: Optional[FeatureValidity] = None
 
     @property
     def has_new_vitals(self) -> bool:
@@ -64,10 +76,15 @@ class RealtimeVitalsEngine:
         self._last_compute_ts: Optional[float] = None
         self._latest: Optional[VitalsResult] = None
         self._latest_features: Optional[BVPFeatures] = None
+        self._latest_feature_validity: Optional[FeatureValidity] = None
 
     @property
     def latest_features(self) -> Optional[BVPFeatures]:
         return self._latest_features
+
+    @property
+    def latest_feature_validity(self) -> Optional[FeatureValidity]:
+        return self._latest_feature_validity
 
     @property
     def latest_result(self) -> Optional[VitalsResult]:
@@ -83,6 +100,7 @@ class RealtimeVitalsEngine:
         self._last_compute_ts = None
         self._latest = None
         self._latest_features = None
+        self._latest_feature_validity = None
         self._service.reset_session(self.session_id)
 
     def process_frame(self, frame_bgr: np.ndarray, timestamp: Optional[float] = None) -> RealtimeVitalsUpdate:
@@ -97,12 +115,22 @@ class RealtimeVitalsEngine:
         window = self.build_window(frame, ts)
         self._last_compute_ts = ts
         self._latest = self._service.compute(window, self.session_id)
-        self._latest_features = self._feature_extractor.extract(window.samples, window.sampling_rate_hz)
+        guarded = self._feature_extractor.extract_checked(
+            window.samples,
+            window.sampling_rate_hz,
+            sqi=window.signal_quality,
+            warnings=window.signal_warnings,
+            artifact_ratio=window.missing_ratio,
+            metadata={"method": window.method, "method_version": window.method_version},
+        )
+        self._latest_features = guarded.features
+        self._latest_feature_validity = guarded.validity
         return RealtimeVitalsUpdate(
             frame=frame,
             vitals=self._latest,
             window_seconds=window.duration_seconds,
             bvp_features=self._latest_features,
+            feature_validity=self._latest_feature_validity,
         )
 
     def build_window(self, frame: FrameResult, ts: float) -> BVPWindow:
@@ -118,6 +146,8 @@ class RealtimeVitalsEngine:
             signal_quality=float(np.clip(frame.quality_sqi, 0.0, 1.0)),
             missing_ratio=self.missing_ratio(),
             raw_samples=detrend_signal(green_intensity(rgb)),
+            roi_agreement=roi_agreement(frame),
+            signal_warnings=signal_warnings(frame),
         )
 
     def missing_ratio(self) -> float:

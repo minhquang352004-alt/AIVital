@@ -4,7 +4,7 @@
   "quality": "GOOD",
   "quality_score": 85,
   "measured_at": "2026-01-01T08:00:30Z",
-  "algorithm_version": "synthetic-1.0.0+vitals-0.1.0",
+  "algorithm_version": "synthetic-1.0.0+vitals-0.2.0",
   "disclaimer": "Kết quả chỉ mang tính tham khảo sức khỏe, không dùng để chẩn đoán hay thay thế thiết bị y tế.",
   "metrics": {
     "heart_rate": {

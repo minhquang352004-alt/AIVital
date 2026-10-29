@@ -71,3 +71,22 @@
 
 ### 4.3 Bàn giao cho Hào (Data & Protocol)
 - Đưa vào quy trình thu thập dữ liệu (*Measurement Protocol*): Bắt buộc người đo ngồi cách camera $0.5 - 0.8\text{ m}$, tránh ngồi ngay dưới bóng đèn tuýp nhấp nháy 50Hz, và giữ yên tư thế trong 10 giây đầu tiên.
+
+
+---
+
+## 5. Phụ lục Tuần 7 — Overhead của logic Robustness (A/B, 3 lần mỗi bên)
+
+Cách đo: cùng video `vid.avi`, 30 giây, `bench_engine_performance.py`; **Tuần 6** = commit `ff6e626`, **Tuần 7** = nhánh hiện tại; chạy xen kẽ 3 lần, báo median của 3 lần (giá trị từng lần trong ngoặc).
+
+| Method | Latency median — Tuần 6 | Latency median — Tuần 7 | Chênh lệch | Throughput (FPS) T6 → T7 | Mean SQI T6 → T7 |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| **POS** | 22.40 ms (22.30 / 22.57 / 22.40) | 22.83 ms (22.83 / 23.14 / 22.62) | +0.43 ms (+1.9%) | 42.8 → 42.1 | 0.682 → 0.683 |
+| **CHROM** | 19.39 ms (19.01 / 19.67 / 19.39) | 19.87 ms (21.00 / 19.61 / 19.87) | +0.48 ms (+2.5%) | 47.7 → 46.5 | 0.591 → 0.605 |
+| **GREEN** | 15.78 ms (15.08 / 15.78 / 16.01) | 16.14 ms (16.30 / 16.14 / 16.03) | +0.36 ms (+2.3%) | 57.2 → 56.1 | 0.285 → 0.293 |
+
+> **Kết luận:**
+> - Overhead trung bình **≈ +0.4 ms/frame (~2%)**, thấp hơn ngưỡng đề ra (+10%) và vẫn nằm trong ngân sách 33.3 ms @ 30 FPS (POS 22.83 ms).
+> - Micro-benchmark từng bước robustness (chuẩn hóa frame, luma, ổn định ánh sáng, chuyển động) cộng lại ≈ 0.08 ms; phần còn lại nằm trong nhiễu đo giữa các lần chạy. Chi tiết ở [`ROBUSTNESS.md`](ROBUSTNESS.md).
+> - `frames_ready` tăng 642 → 647 (cả 3 method, ổn định ở cả 3 lần): nhiều khả năng do cách xử lý đứt timestamp/thích nghi ánh sáng mới (chưa tách riêng nguyên nhân); mean SQI không suy giảm.
+> - **Giải thích số liệu Accepted giảm (71.9% → 67.4%) trong lần đo đơn lẻ trước đây:** tỷ lệ `ACCEPTED/SUSPICIOUS/REJECTED` dao động rất lớn giữa các lần chạy *cùng một mã nguồn* (POS Tuần 6: ACCEPTED 358–418; Tuần 7: 339–367) vì Quality Gate tính SQI nâng cao theo đồng hồ thực (`perf_counter`, throttle 1s), nên tỷ lệ này phụ thuộc tốc độ máy khi chạy. **Không nên so sánh bằng một lần đo**; `mean_sqi` ổn định (±0.001) và không suy giảm.

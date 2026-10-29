@@ -11,7 +11,7 @@ from aivitals_engine.vitals.failures import ComputationFailure
 from aivitals_engine.vitals.preprocess import bandpass_filter, detrend_signal
 from aivitals_engine.vitals.spectral import find_spectral_peak
 
-RESPIRATORY_RATE_ALGORITHM = AlgorithmInfo(name="rr_modulation_fusion", version="0.1.0")
+RESPIRATORY_RATE_ALGORITHM = AlgorithmInfo(name="rr_modulation_fusion", version="0.1.1")
 COMPONENT_AMPLITUDE = "riav"
 COMPONENT_FREQUENCY = "rifv"
 COMPONENT_INTENSITY = "riiv"
@@ -35,6 +35,8 @@ class RespiratoryRateEstimator:
     def estimate(self, window: BVPWindow, beats: BeatSeries | None) -> RespiratoryRateEstimate:
         if window.duration_seconds < self._config.min_window_seconds:
             return RespiratoryRateEstimate(failure_reason=ComputationFailure.WINDOW_TOO_SHORT)
+        if window.sampling_rate_hz < self._config.min_sampling_rate_hz:
+            return RespiratoryRateEstimate(failure_reason=ComputationFailure.SAMPLING_RATE_TOO_LOW)
         components = self._component_estimates(window, beats)
         if not components:
             return RespiratoryRateEstimate(failure_reason=ComputationFailure.NO_RESPIRATORY_COMPONENT)

@@ -6,6 +6,7 @@ import numpy as np
 
 from aivitals_engine.config.vitals_config import PhysiologicalRange, ValidationConfig
 from aivitals_engine.contracts.result import DetailValue, IssueSeverity, ValidationIssue, VitalCode
+from aivitals_engine.quality.signal_warnings import WarningSeverity, severity_of
 from aivitals_engine.validation.candidate import ValidationContext, VitalCandidate
 from aivitals_engine.validation.issue_codes import IssueCode
 
@@ -168,6 +169,27 @@ class CrossRoiConsistencyRule:
 
 
 @dataclass(frozen=True)
+class RoiAgreementRule:
+    warning_threshold: float
+
+    def evaluate(self, candidate: VitalCandidate, context: ValidationContext) -> list[ValidationIssue]:
+        agreement = candidate.roi_agreement
+        if candidate.value is None or agreement is None or agreement >= self.warning_threshold:
+            return []
+        message = "Tín hiệu vùng trán và má không tương quan với nhau"
+        return [warning(IssueCode.ROI_SIGNAL_DISAGREEMENT, message, roi_agreement=agreement, threshold=self.warning_threshold)]
+
+
+class SignalConditionRule:
+    def evaluate(self, candidate: VitalCandidate, context: ValidationContext) -> list[ValidationIssue]:
+        blocking = sorted({code for code in candidate.signal_warnings if severity_of(code) is WarningSeverity.BLOCK})
+        if candidate.value is None or not blocking:
+            return []
+        message = "Điều kiện đo không ổn định trong cửa sổ tín hiệu (mặt di chuyển nhiều hoặc mất mặt)"
+        return [warning(IssueCode.SIGNAL_CONDITION_BLOCKING, message, signal_warnings=",".join(blocking))]
+
+
+@dataclass(frozen=True)
 class ConfidenceRule:
     ok_threshold: float
     invalid_threshold: float
@@ -193,5 +215,7 @@ def build_default_rules(config: ValidationConfig) -> tuple[ValidationRule, ...]:
         SuddenJumpRule(config.jump_tolerance, config.jump_rate_per_second),
         TemporalStabilityRule(config.stability_std_limit, config.min_values_for_stability),
         CrossRoiConsistencyRule(config.cross_roi_spread_limit),
+        RoiAgreementRule(config.roi_agreement_warning),
+        SignalConditionRule(),
         ConfidenceRule(config.confidence_ok, config.confidence_invalid),
     )

@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "result_id": "00000000-0000-0000-0000-000000000001",
   "session_id": "example-session",
-  "engine_version": "0.1.0",
+  "engine_version": "0.2.0",
   "created_at": "2026-01-01T08:00:30Z",
   "source": {
     "rppg_method": "synthetic",
@@ -34,7 +34,7 @@
       "issues": [],
       "algorithm": {
         "name": "hr_spectral_peak_fusion",
-        "version": "0.1.0"
+        "version": "0.1.1"
       },
       "model": null
     },
@@ -114,7 +114,7 @@
       "issues": [],
       "algorithm": {
         "name": "rr_modulation_fusion",
-        "version": "0.1.0"
+        "version": "0.1.1"
       },
       "model": null
     }

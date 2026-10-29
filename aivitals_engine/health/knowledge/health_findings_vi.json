@@ -1,0 +1,50 @@
+{
+  "knowledge_version": "0.1.0-draft",
+  "review_status": "pending_medical_review",
+  "reviewer_role": "Data / Health Research",
+  "disclaimer": "Kết quả chỉ mang tính tham khảo cho mục đích theo dõi sức khỏe tổng quát (wellness), không phải chẩn đoán y khoa và không thay thế thiết bị đo hoặc chuyên gia y tế.",
+  "findings": {
+    "resting_heart_rate_within_typical_range": {
+      "severity": "info",
+      "evidence_level": "established",
+      "interpretation": "Nhịp tim lúc nghỉ nằm trong khoảng thường gặp ở người trưởng thành (khoảng 60–100 nhịp/phút).",
+      "caution": "Nhịp tim thay đổi theo vận động, cảm xúc, cà phê, thuốc và điều kiện đo."
+    },
+    "resting_heart_rate_above_typical_range": {
+      "severity": "attention",
+      "evidence_level": "established",
+      "interpretation": "Nhịp tim lúc nghỉ cao hơn khoảng thường gặp ở người trưởng thành.",
+      "caution": "Hãy nghỉ ngơi vài phút rồi đo lại. Nếu thường xuyên cao hoặc kèm triệu chứng như khó thở, đau ngực, chóng mặt, hãy liên hệ nhân viên y tế."
+    },
+    "resting_heart_rate_below_typical_range": {
+      "severity": "attention",
+      "evidence_level": "established",
+      "interpretation": "Nhịp tim lúc nghỉ thấp hơn khoảng thường gặp ở người trưởng thành.",
+      "caution": "Nhịp tim thấp có thể gặp ở người tập luyện thể thao thường xuyên. Nếu kèm mệt, chóng mặt hoặc ngất, hãy liên hệ nhân viên y tế."
+    },
+    "respiratory_rate_within_typical_range": {
+      "severity": "info",
+      "evidence_level": "established",
+      "interpretation": "Nhịp thở lúc nghỉ nằm trong khoảng thường gặp ở người trưởng thành (khoảng 12–20 lần/phút).",
+      "caution": "Nhịp thở ước tính từ camera nhạy với chuyển động và cách ngồi khi đo."
+    },
+    "respiratory_rate_above_typical_range": {
+      "severity": "attention",
+      "evidence_level": "established",
+      "interpretation": "Nhịp thở lúc nghỉ cao hơn khoảng thường gặp ở người trưởng thành.",
+      "caution": "Hãy ngồi yên, thở tự nhiên và đo lại. Nếu kèm khó thở, hãy liên hệ nhân viên y tế."
+    },
+    "respiratory_rate_below_typical_range": {
+      "severity": "attention",
+      "evidence_level": "established",
+      "interpretation": "Nhịp thở lúc nghỉ thấp hơn khoảng thường gặp ở người trưởng thành.",
+      "caution": "Nhịp thở chậm có thể do chủ động thở sâu khi đo. Hãy thở tự nhiên và đo lại."
+    },
+    "hrv_single_measurement_context": {
+      "severity": "info",
+      "evidence_level": "insufficient",
+      "interpretation": "Biến thiên nhịp tim (HRV) trong một lần đo ngắn chỉ phản ánh trạng thái tại thời điểm đo.",
+      "caution": "HRV khác nhau nhiều giữa các cá nhân; nên theo dõi xu hướng của chính bạn qua nhiều lần đo trong cùng điều kiện thay vì so với ngưỡng chung."
+    }
+  }
+}

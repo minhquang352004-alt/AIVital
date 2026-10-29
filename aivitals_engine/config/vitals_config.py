@@ -51,6 +51,7 @@ class HeartRateConfig:
     band: FrequencyBand = FrequencyBand(0.7, 3.0)
     analysis_window_seconds: float = 10.0
     min_window_seconds: float = 6.0
+    min_sampling_rate_hz: float = 15.0
     spectral_resolution_hz: float = 0.005
     snr_tolerance_hz: float = 0.1
     method_agreement_bpm: float = 5.0
@@ -72,6 +73,7 @@ class HRVConfig:
 class RespiratoryRateConfig:
     band: FrequencyBand = FrequencyBand(0.1, 0.5)
     min_window_seconds: float = 30.0
+    min_sampling_rate_hz: float = 15.0
     resample_hz: float = 4.0
     spectral_resolution_hz: float = 0.002
     snr_tolerance_hz: float = 0.03
@@ -113,11 +115,12 @@ def default_physiological_ranges() -> dict[VitalCode, PhysiologicalRange]:
 @dataclass(frozen=True)
 class ValidationConfig:
     signal_quality_ok: float = 0.6
-    signal_quality_invalid: float = 0.3
+    signal_quality_invalid: float = 0.4
     confidence_ok: float = 0.6
     confidence_invalid: float = 0.3
     missing_ratio_ok: float = 0.1
     missing_ratio_invalid: float = 0.3
+    roi_agreement_warning: float = 0.35
     min_values_for_stability: int = 4
     min_window_seconds: Mapping[VitalCode, float] = field(default_factory=default_min_window_seconds)
     ranges: Mapping[VitalCode, PhysiologicalRange] = field(default_factory=default_physiological_ranges)

@@ -18,7 +18,7 @@ from aivitals_engine.vitals.failures import ComputationFailure
 from aivitals_engine.vitals.preprocess import prepare_pulse_signal
 from aivitals_engine.vitals.spectral import SpectralPeak, find_spectral_peak
 
-HEART_RATE_ALGORITHM = AlgorithmInfo(name="hr_spectral_peak_fusion", version="0.1.0")
+HEART_RATE_ALGORITHM = AlgorithmInfo(name="hr_spectral_peak_fusion", version="0.1.1")
 UNKNOWN_AGREEMENT = 0.5
 
 
@@ -58,6 +58,8 @@ class HeartRateEstimator:
         duration = segment.duration_seconds
         if duration < self._config.min_window_seconds:
             return HeartRateEstimate(bpm=None, analysed_seconds=duration, failure_reason=ComputationFailure.WINDOW_TOO_SHORT)
+        if segment.sampling_rate_hz < self._config.min_sampling_rate_hz:
+            return HeartRateEstimate(bpm=None, analysed_seconds=duration, failure_reason=ComputationFailure.SAMPLING_RATE_TOO_LOW)
         prepared = prepare_pulse_signal(segment.samples, segment.sampling_rate_hz, self._config.band)
         peak = self._spectral_peak(prepared, segment.sampling_rate_hz)
         if peak is None:
@@ -67,6 +69,8 @@ class HeartRateEstimator:
 
     def estimate_spectral_bpm(self, samples: np.ndarray, sampling_rate_hz: float) -> float | None:
         if samples.size / sampling_rate_hz < self._config.min_window_seconds:
+            return None
+        if sampling_rate_hz < self._config.min_sampling_rate_hz:
             return None
         prepared = prepare_pulse_signal(samples, sampling_rate_hz, self._config.band)
         peak = self._spectral_peak(prepared, sampling_rate_hz)
