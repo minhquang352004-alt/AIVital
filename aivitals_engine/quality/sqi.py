@@ -53,7 +53,9 @@ def calculate_bvp_quality(
     bvp_signal: np.ndarray,
     fs: float = 30.0,
     snr_min: float = -5.0,
-    snr_max: float = 10.0
+    snr_max: float = 10.0,
+    low_cutoff: float = 0.75,
+    high_cutoff: float = 2.50,
 ) -> float:
     """
     Chỉ số chất lượng tín hiệu BVP (Signal Quality Index) chuẩn hóa từ 0.0 đến 1.0.
@@ -61,7 +63,12 @@ def calculate_bvp_quality(
     - 0.4 - 0.7: Tín hiệu trung bình, có nhiễu nhẹ
     - < 0.4: Tín hiệu kém, nhiễu nhiều
     """
-    snr_val = calculate_bvp_snr(bvp_signal, fs=fs)
+    snr_val = calculate_bvp_snr(
+        bvp_signal,
+        fs=fs,
+        low_cutoff=low_cutoff,
+        high_cutoff=high_cutoff,
+    )
     quality = (snr_val - snr_min) / (snr_max - snr_min)
     return float(round(np.clip(quality, 0.0, 1.0), 2))
 
@@ -175,4 +182,3 @@ def calculate_cross_roi_sqi(sub_rgbs: dict, fs: float) -> dict:
         'r_mean': r_mean,
         'r_min': r_min
     }
-

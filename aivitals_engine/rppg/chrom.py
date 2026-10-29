@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import signal
 from .base import RPPGMethod
+from aivitals_engine.signal.detrend import smoothness_priors_detrend
 from aivitals_engine.signal.filter import butter_bandpass_filter
 
 class CHROMMethod(RPPGMethod):
@@ -26,20 +27,17 @@ class CHROMMethod(RPPGMethod):
         if N < win_len:
             return np.zeros(N)
 
-        step = win_len // 2
-        num_windows = (N - step) // step
-        if num_windows < 1:
-            return np.zeros(N)
+        step = max(1, win_len // 2)
+        starts = list(range(0, N - win_len + 1, step))
+        if starts[-1] != N - win_len:
+            starts.append(N - win_len)
 
-        S = np.zeros(N)
-        hann_win = signal.windows.hann(win_len)
+        S = np.zeros(N, dtype=np.float64)
+        weights = np.zeros(N, dtype=np.float64)
+        hann_win = np.maximum(signal.windows.hann(win_len), 0.05)
 
-        for i in range(num_windows):
-            start = i * step
+        for start in starts:
             end = start + win_len
-            if end > N:
-                break
-
             rgb_window = rgb_array[start:end, :]
             rgb_base = np.mean(rgb_window, axis=0)
             rgb_base[rgb_base == 0] = 1e-7
@@ -49,10 +47,8 @@ class CHROMMethod(RPPGMethod):
             Xs = 3.0 * rgb_norm[:, 0] - 2.0 * rgb_norm[:, 1]
             Ys = 1.5 * rgb_norm[:, 0] + rgb_norm[:, 1] - 1.5 * rgb_norm[:, 2]
 
-            # Lọc dải thông sắc độ
-            Xf = butter_bandpass_filter(Xs, lowcut=self.lowcut, highcut=self.highcut, fs=self.fps, order=self.filter_order)
-            Yf = butter_bandpass_filter(Ys, lowcut=self.lowcut, highcut=self.highcut, fs=self.fps, order=self.filter_order)
-
+            Xf = Xs - np.mean(Xs)
+            Yf = Ys - np.mean(Ys)
 
             std_y = np.std(Yf)
             alpha = (np.std(Xf) / std_y) if std_y > 1e-7 else 0.0
@@ -60,5 +56,18 @@ class CHROMMethod(RPPGMethod):
             # Cửa sổ Hanning và tích lũy chồng chập
             s_win = (Xf - alpha * Yf) * hann_win
             S[start:end] += s_win
+            weights[start:end] += hann_win
 
-        return S
+        # Chuẩn hóa trọng số chồng chập (Overlap-Add Normalization)
+        S = np.divide(S, weights, out=np.zeros_like(S), where=weights > 0)
+
+        # Khử trôi + Lọc dải thông trên toàn bộ chuỗi dài N (tránh suy hao trên cửa sổ ngắn)
+        bvp = smoothness_priors_detrend(S, lambda_value=self.detrend_lambda)
+        bvp = butter_bandpass_filter(
+            bvp,
+            lowcut=self.lowcut,
+            highcut=self.highcut,
+            fs=self.fps,
+            order=self.filter_order
+        )
+        return bvp

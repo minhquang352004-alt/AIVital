@@ -1,9 +1,10 @@
 # Báo Cáo Đo Kiểm Hiệu Năng & Độ Bền rPPG Engine (Tuần 6)
-**Ngày thực hiện:** 2026-10-15 12:23:29  
+**Ngày thực hiện:** 2026-10-27 10:39:54  
 **Người phụ trách:** Khang (Coding / AI Signal)  
 **Môi trường thử nghiệm:** Python 3.14.7 | Nền tảng: win32  
 **Dữ liệu kiểm thử:** `vid.avi`  
-**Thời lượng kiểm thử:** Toàn bộ video (Full duration)
+**Thời lượng kiểm thử:** Toàn bộ video (Full duration)  
+**Bộ phát hiện khuôn mặt:** `Google MediaPipe Face Mesh (478 landmarks, Active)`
 
 ---
 
@@ -11,14 +12,14 @@
 
 | Thuật toán | Thông lượng (FPS) | Độ trễ Median (ms) | Độ trễ p95 (ms) | CPU (%) | RAM (MB) | SQI Trung bình | Tỷ lệ Accepted |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **POS** | 46.8 FPS | 22.4 ms | 26.37 ms | 104.4% | 2349.3 MB | 0.674 | 71.9% |
-| **CHROM** | 48.9 FPS | 19.35 ms | 30.97 ms | 106.8% | 2366.4 MB | 0.592 | 65.0% |
-| **GREEN** | 57.4 FPS | 15.59 ms | 27.07 ms | 108.3% | 2368.1 MB | 0.347 | 25.5% |
+| **POS** | 49.6 FPS | 21.11 ms | 24.27 ms | 105.7% | 2386.1 MB | 0.687 | 69.2% |
+| **CHROM** | 64.3 FPS | 14.92 ms | 17.09 ms | 107.2% | 2393.3 MB | 0.637 | 69.2% |
+| **GREEN** | 67.0 FPS | 14.2 ms | 16.38 ms | 106.1% | 2395.7 MB | 0.351 | 21.3% |
 
 > **Phân tích kỹ thuật:**
-> - **Ngân sách thời gian thực (Budget 33.3 ms @ 30 FPS):** Cả 3 thuật toán đều đáp ứng tốt yêu cầu thời gian thực. Thuật toán POS tiêu tốn median 22.4 ms/frame (đạt thông lượng 46.8 FPS), vượt xa ngưỡng trần 33.3 ms (30 FPS).
-> - **Chất lượng sóng (BVP Quality):** POS duy trì chỉ số SQI cao nhất (0.674) cùng tỷ lệ Accepted đạt 71.9%, thể hiện khả năng bù trừ thay đổi pha màu da và chống nhiễu vượt trội so với CHROM và GREEN.
-> - **GREEN Method:** Tốc độ xử lý nhanh nhất (57.4 FPS với độ trễ median 15.59 ms/frame), đóng vai trò thuật toán dự phòng tối ưu cho các thiết bị di động/máy yếu.
+> - **Ngân sách thời gian thực (Budget 33.3 ms @ 30 FPS):** Cả 3 thuật toán đều đáp ứng tốt yêu cầu thời gian thực. Thuật toán POS tiêu tốn median 21.11 ms/frame (đạt thông lượng 49.6 FPS), vượt xa ngưỡng trần 33.3 ms (30 FPS).
+> - **Chất lượng sóng (BVP Quality):** POS duy trì chỉ số SQI cao nhất (0.687) cùng tỷ lệ Accepted đạt 69.2%, thể hiện khả năng bù trừ thay đổi pha màu da và chống nhiễu vượt trội so với CHROM và GREEN.
+> - **GREEN Method:** Tốc độ xử lý nhanh nhất (67.0 FPS với độ trễ median 14.2 ms/frame), đóng vai trò thuật toán dự phòng tối ưu cho các thiết bị di động/máy yếu.
 
 ---
 
@@ -26,14 +27,14 @@
 
 | Hạng mục đo lường | Single-ROI (Chỉ Trán) | Multi-ROI (Trán + 2 Má) | Độ lệch (Delta / Overhead) |
 |:---|:---:|:---:|:---:|
-| **Thời gian trích xuất RGB (Median)** | 0.146 ms | 0.245 ms | +0.098 ms (+67.1%) |
-| **Độ trễ toàn bộ Pipeline (Median)** | 21.42 ms | 21.34 ms | +-0.08 ms |
-| **Chất lượng sóng BVP (Mean SQI)** | 0.646 | 0.674 | $\Delta = +0.028$ |
-| **Tương quan Cross-ROI ($r_{mean}$)** | — | **$r = 0.53$** | Đạt chuẩn (r > 0.5) |
+| **Thời gian trích xuất RGB (Median)** | 0.143 ms | 0.239 ms | +0.096 ms (+67.3%) |
+| **Độ trễ toàn bộ Pipeline (Median)** | 20.98 ms | 21.23 ms | +0.25 ms |
+| **Chất lượng sóng BVP (Mean SQI)** | 0.643 | 0.687 | $\Delta = +0.044$ |
+| **Tương quan Cross-ROI ($r_{mean}$)** | — | **$r = 0.54$** | Đạt chuẩn (r > 0.5) |
 
 > **Kết luận Task 3:**
-> - Chi phí tính toán thêm của Multi-ROI là rất nhỏ (+0.098 ms cho khâu trích xuất, và độ trễ toàn pipeline duy trì ổn định quanh mức ~21.34 ms).
-> - Chất lượng sóng BVP cải thiện (SQI tăng +0.028). Tương quan tín hiệu giữa trán và 2 má đạt mức đồng bộ tốt ($r = 0.53$), phản ánh đúng đặc tính tưới máu đồng pha trên mặt thật. Cơ chế Multi-ROI là hoàn toàn khả thi và **khuyến nghị bật mặc định** để hỗ trợ Quality Gate.
+> - Chi phí tính toán thêm của Multi-ROI là rất nhỏ (+0.096 ms cho khâu trích xuất, và độ trễ toàn pipeline duy trì ổn định quanh mức ~21.23 ms).
+> - Chất lượng sóng BVP cải thiện (SQI tăng +0.044). Tương quan tín hiệu giữa trán và 2 má đạt mức đồng bộ tốt ($r = 0.54$), phản ánh đúng đặc tính tưới máu đồng pha trên mặt thật. Cơ chế Multi-ROI là hoàn toàn khả thi và **khuyến nghị bật mặc định** để hỗ trợ Quality Gate.
 
 ---
 
@@ -52,7 +53,7 @@
 ## 4. Biên Bản Nghiệm Thu & Bàn Giao Kỹ Thuật (DoD Sign-off — Task 5)
 
 ### 4.1 Bàn giao cho Quang (Frontend & API Integration)
-- **Thuật toán mặc định:** Khuyến nghị đặt **`POS` làm mặc định** cho Web MVP vì cân bằng tối ưu giữa độ ổn định và độ trễ (22.4 ms, đạt 46.8 FPS).
+- **Thuật toán mặc định:** Khuyến nghị đặt **`POS` làm mặc định** cho Web MVP vì cân bằng tối ưu giữa độ ổn định và độ trễ (21.11 ms, đạt 49.6 FPS).
 - **Cấu hình Web Camera đề xuất:**
   - Độ phân giải khuyến nghị: $640 \times 480$ (vừa nhẹ CPU, vừa đủ diện tích pixel cho ROI).
   - Tần số khung hình mục tiêu: $30.0\text{ FPS}$ (tối thiểu không được dưới $20\text{ FPS}$).

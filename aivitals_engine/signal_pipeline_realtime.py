@@ -175,7 +175,7 @@ class RealtimeSignalPipeline:
         from aivitals_engine.quality.gate import QualityGate
         self._bbox_buffer = deque(maxlen=self._buffer._rgb_buffer.maxlen)
         self._quality_gate = QualityGate()
-        self._last_sqi_calc_time = 0.0
+        self._last_sqi_calc_time: Optional[float] = None
         self._cached_metrics = {}
 
         # Tracking tình huống biên mất mặt tạm thời (Week 7)
@@ -304,14 +304,22 @@ class RealtimeSignalPipeline:
         bvp = self._run_rppg(rgb_resampled, effective_fps)
         sqi = self._score_quality(bvp, effective_fps)
 
-        # Advanced SQI calculation (throttle to ~1s)
-        current_time = time.perf_counter()
-        if (current_time - self._last_sqi_calc_time) >= 1.0:
+        # Advanced SQI calculation (throttle to ~1s theo timestamp logic ts)
+        if (
+            self._last_sqi_calc_time is None
+            or (ts - self._last_sqi_calc_time) >= 1.0
+            or ts < self._last_sqi_calc_time
+        ):
             from aivitals_engine.quality.sqi import calculate_periodicity_sqi, calculate_cross_roi_sqi
             from aivitals_engine.quality.motion import calculate_motion_sqi
             
             # Periodicity
-            periodicity, _ = calculate_periodicity_sqi(bvp, effective_fps)
+            periodicity, _ = calculate_periodicity_sqi(
+                bvp,
+                effective_fps,
+                min_bpm=self._cfg.periodicity_min_bpm,
+                max_bpm=self._cfg.periodicity_max_bpm,
+            )
             
             # Cross-ROI
             sub_raw = self._buffer.get_sub_roi_raw_window()
@@ -340,14 +348,14 @@ class RealtimeSignalPipeline:
                 'artifact_ratio': artifact_ratio
             }
             
-            state, reasons = self._quality_gate.evaluate(metrics, current_time)
+            state, reasons = self._quality_gate.evaluate(metrics, ts)
             
             self._cached_metrics = {
                 'metrics': metrics,
                 'state': state.value,
                 'reasons': [r.value for r in reasons]
             }
-            self._last_sqi_calc_time = current_time
+            self._last_sqi_calc_time = ts
 
         c_metrics = self._cached_metrics.get('metrics', {})
         c_state = self._cached_metrics.get('state', "ACCEPTED")
@@ -469,7 +477,7 @@ class RealtimeSignalPipeline:
     def _invalidate_quality_cache(self) -> None:
         """Bỏ SQI/quality đã cache để lần sau tính lại từ buffer mới."""
         self._cached_metrics = {}
-        self._last_sqi_calc_time = 0.0
+        self._last_sqi_calc_time = None
 
     def _reset_signal_state(self) -> None:
         """Reset buffer và toàn bộ trạng thái suy ra từ nó (dùng khi mất mặt quá lâu)."""
@@ -486,7 +494,7 @@ class RealtimeSignalPipeline:
         self._frame_count = 0
         self._last_face_detected_ts = None
         self._face_lost_start_ts = None
-        self._last_sqi_calc_time = 0.0
+        self._last_sqi_calc_time = None
         self._cached_metrics = {}
         self._luma_recent.clear()
         self._luma_history.clear()
@@ -560,15 +568,14 @@ class RealtimeSignalPipeline:
         sqi = self._score_quality(bvp, effective_fps)
         total = self._buffer.size + self._buffer.artifact_count
         artifact_ratio = self._buffer.artifact_count / total if total > 0 else 0.0
-        meta = self._rppg_method.get_metadata()
         from aivitals_engine.features import BVPFeatureExtractor
         return BVPFeatureExtractor().extract_checked(
             bvp, effective_fps,
             sqi=sqi,
             warnings=self._last_warnings,
             artifact_ratio=artifact_ratio,
-            metadata={"method": meta.get("method", self._rppg_method.name),
-                      "method_version": meta.get("version", self._rppg_method.version)},
+            metadata={"method": self._rppg_method.name,
+                      "method_version": self._rppg_method.version},
         )
 
     # ──────────────────────────────────────────────────────────────────────────
@@ -653,7 +660,12 @@ class RealtimeSignalPipeline:
         return self._rppg_method.process(rgb_resampled)
 
     def _score_quality(self, bvp: np.ndarray, fps: float) -> float:
-        return calculate_bvp_quality(bvp, fs=fps)
+        return calculate_bvp_quality(
+            bvp,
+            fs=fps,
+            low_cutoff=self._lowcut,
+            high_cutoff=self._highcut,
+        )
 
     # ──────────────────────────────────────────────────────────────────────────
     # Private — tạo FrameResult cho từng trường hợp
@@ -748,14 +760,21 @@ class RealtimeSignalPipeline:
         luma:             float = 0.0,
         face_width_ratio: float = 0.0,
     ) -> FrameResult:
-        meta   = self._rppg_method.get_metadata()
         all_warnings = list(warnings) if warnings is not None else []
         if quality_reasons:
             for r in quality_reasons:
                 if r not in all_warnings:
                     all_warnings.append(r)
-        # Cảnh báo mức BLOCK (vd. MOTION_HIGH) hạ trạng thái xuống LOW_QUALITY
-        status = "OK" if (sqi >= self._SQI_THRESHOLD and not has_blocking(all_warnings)) else "LOW_QUALITY"
+        # Cảnh báo mức BLOCK (vd. MOTION_HIGH) hoặc QualityGate REJECTED hạ trạng thái xuống LOW_QUALITY
+        status = (
+            "OK"
+            if (
+                sqi >= self._SQI_THRESHOLD
+                and not has_blocking(all_warnings)
+                and quality_state != "REJECTED"
+            )
+            else "LOW_QUALITY"
+        )
         return FrameResult(
             is_ready         = True,
             status           = status,
@@ -769,8 +788,8 @@ class RealtimeSignalPipeline:
             landmarks        = landmarks,
             frame_count      = self._frame_count,
             artifact_count   = self._buffer.artifact_count,
-            method_name      = meta.get("method", self._rppg_method.name),
-            method_version   = meta.get("version", self._rppg_method.version),
+            method_name      = self._rppg_method.name,
+            method_version   = self._rppg_method.version,
             quality_metrics  = quality_metrics,
             quality_state    = quality_state,
             quality_reasons  = quality_reasons,

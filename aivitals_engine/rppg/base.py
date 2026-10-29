@@ -36,7 +36,7 @@ class RPPGMethod(ABC):
 
         self.fps            = float(fps)
         self.window_sec     = float(window_sec     if window_sec     is not None else cfg.sub_window_sec)
-        self.window_len     = max(9, int(np.ceil(self.window_sec * self.fps)))
+        self._window_len_override: Optional[int] = None
         self.lowcut         = float(lowcut         if lowcut         is not None else cfg.low_cutoff_hz)
         self.highcut        = float(highcut        if highcut        is not None else cfg.high_cutoff_hz)
         self.detrend_lambda = float(detrend_lambda if detrend_lambda is not None else cfg.detrend_lambda)
@@ -46,6 +46,16 @@ class RPPGMethod(ABC):
         self._stream_buffer: List[np.ndarray] = []
         self._latest_bvp:    np.ndarray       = np.array([])
         self._latest_quality: float           = 0.0
+
+    @property
+    def window_len(self) -> int:
+        if self._window_len_override is not None:
+            return self._window_len_override
+        return max(9, int(np.ceil(self.window_sec * self.fps)))
+
+    @window_len.setter
+    def window_len(self, value: Optional[int]) -> None:
+        self._window_len_override = None if value is None else max(9, int(value))
 
     # ──────────────────────────────────────────────────────────────────────────
     # Abstract contract — subclass phải implement
@@ -142,7 +152,12 @@ class RPPGMethod(ABC):
         """
         if len(self._latest_bvp) == 0:
             self.get_signal()
-        self._latest_quality = calculate_bvp_quality(self._latest_bvp, fs=self.fps)
+        self._latest_quality = calculate_bvp_quality(
+            self._latest_bvp,
+            fs=self.fps,
+            low_cutoff=self.lowcut,
+            high_cutoff=self.highcut,
+        )
         return self._latest_quality
 
     def get_metadata(self) -> Dict[str, Any]:

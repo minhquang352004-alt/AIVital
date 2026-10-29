@@ -23,30 +23,43 @@ class POSMethod(RPPGMethod):
         if N < l:
             return np.zeros(N)
 
-        H = np.zeros(N)
+        H = np.zeros(N, dtype=np.float64)
+        weights = np.zeros(N, dtype=np.float64)
         projection_matrix = np.array([[0.0, 1.0, -1.0], [-2.0, 1.0, 1.0]])
 
-        for n in range(N):
-            m = n - l
-            if m >= 0:
-                sub_rgb = rgb_array[m:n, :]
-                mean_rgb = np.mean(sub_rgb, axis=0)
-                mean_rgb[mean_rgb == 0] = 1e-7
+        # Vector hóa toàn bộ các cửa sổ con (thay vòng lặp Python từng cửa sổ)
+        rgb_f = np.ascontiguousarray(rgb_array, dtype=np.float64)
+        n_win = N - l + 1
+        # windows: (n_win, 3, l)
+        windows = np.lib.stride_tricks.sliding_window_view(rgb_f, l, axis=0)
+        mean_rgb = windows.mean(axis=2)  # (n_win, 3)
+        mean_rgb[mean_rgb == 0] = 1e-7
 
-                # Chuẩn hóa thời gian
-                Cn = (sub_rgb / mean_rgb).T  # (3, l)
+        # Chuẩn hóa thời gian
+        Cn = windows / mean_rgb[:, :, None]  # (n_win, 3, l)
 
-                # Phép chiếu trực giao
-                S = np.matmul(projection_matrix, Cn)  # (2, l)
+        # Phép chiếu trực giao
+        S = np.matmul(projection_matrix, Cn)  # (n_win, 2, l)
 
-                # Kết hợp thích ứng
-                std_s0 = np.std(S[0, :])
-                std_s1 = np.std(S[1, :])
-                alpha = (std_s0 / std_s1) if std_s1 > 1e-7 else 0.0
+        # Kết hợp thích ứng
+        std_s0 = S[:, 0, :].std(axis=1)
+        std_s1 = S[:, 1, :].std(axis=1)
+        alpha = np.divide(
+            std_s0, std_s1, out=np.zeros_like(std_s0), where=std_s1 > 1e-7
+        )
 
-                h = S[0, :] + alpha * S[1, :]
-                h = h - np.mean(h)
-                H[m:n] += h
+        h = S[:, 0, :] + alpha[:, None] * S[:, 1, :]  # (n_win, l)
+        h = h - h.mean(axis=1, keepdims=True)
+
+        # Cộng chồng chập (Overlap-Add) theo từng độ lệch trong cửa sổ
+        for k in range(l):
+            H[k:k + n_win] += h[:, k]
+        weights = np.zeros(N, dtype=np.float64)
+        for k in range(l):
+            weights[k:k + n_win] += 1.0
+
+        # Chuẩn hóa trọng số chồng chập (Overlap-Add Normalization) để triệt tiêu méo hình quả trám
+        H = np.divide(H, weights, out=np.zeros_like(H), where=weights > 0)
 
         # Khử trôi đường đẳng điện + Lọc dải thông trên sóng BVP 1D
         bvp = smoothness_priors_detrend(H, lambda_value=self.detrend_lambda)
@@ -58,4 +71,3 @@ class POSMethod(RPPGMethod):
             order=self.filter_order
         )
         return bvp
-

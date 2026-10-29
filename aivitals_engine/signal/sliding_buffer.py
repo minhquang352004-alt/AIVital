@@ -57,7 +57,8 @@ class SlidingWindowBuffer:
         self.time_gap_threshold = float(time_gap_threshold)
         self.max_consecutive_artifacts = int(max_consecutive_artifacts) if max_consecutive_artifacts is not None else None
 
-        max_frames = int(np.ceil(self.window_sec * self.target_fps))
+        # Cho phép dung lượng tối đa tới 120 FPS để camera 60/120 FPS không bị cắt cụt thời gian < min_sec
+        max_frames = int(np.ceil(self.window_sec * max(self.target_fps, 120.0))) + 2
         self._rgb_buffer:  deque = deque(maxlen=max_frames)
         self._timestamps:  deque = deque(maxlen=max_frames)
         self._artifact_count: int = 0
@@ -132,7 +133,28 @@ class SlidingWindowBuffer:
             self._left_cheek_buf.append(np.asarray(sub_rgbs.left_cheek,  dtype=np.float64))
             self._right_cheek_buf.append(np.asarray(sub_rgbs.right_cheek, dtype=np.float64))
 
+        # Cắt bỏ các mẫu cũ vượt quá cửa sổ thời gian window_sec (đồng bộ cả 5 deque)
+        self._evict_expired(ts)
+
         return True
+
+    def _evict_expired(self, current_ts: float) -> None:
+        """Loại bỏ các frame ở đầu deque khi khoảng thời gian vượt quá window_sec."""
+        nominal_max = int(np.ceil(self.window_sec * max(self.target_fps, self.get_fps())))
+        while len(self._timestamps) > 2 and (
+            (current_ts - self._timestamps[0]) > self.window_sec + 1e-6
+            or len(self._timestamps) > nominal_max
+        ):
+            self._rgb_buffer.popleft()
+            self._timestamps.popleft()
+            if self._bbox_buf:
+                self._bbox_buf.popleft()
+            if self._forehead_buf:
+                self._forehead_buf.popleft()
+            if self._left_cheek_buf:
+                self._left_cheek_buf.popleft()
+            if self._right_cheek_buf:
+                self._right_cheek_buf.popleft()
 
     def is_ready(self) -> bool:
         """True khi buffer đã tích lũy đủ `min_sec` giây dữ liệu."""

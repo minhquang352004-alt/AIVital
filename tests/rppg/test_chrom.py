@@ -45,6 +45,16 @@ class TestCHROMMethod(unittest.TestCase):
         self.assertEqual(meta["method"], "CHROM")
         self.assertEqual(meta["signal_length"], self.N)
 
+    def test_chrom_full_window_coverage(self):
+        """CHROM với độ dài lẻ (không chia hết cho step) không để lại đoạn 0 ở cuối."""
+        odd_len = 205
+        rgb_odd = self.synthetic_rgb[:odd_len]
+        chrom = CHROMMethod(fps=self.fs, lowcut=0.75, highcut=2.50)
+        bvp = chrom.process(rgb_odd)
+
+        self.assertEqual(len(bvp), odd_len)
+        self.assertGreater(np.std(bvp[-20:]), 1e-4)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -310,7 +310,28 @@ class MediaPipeFaceDetector(BaseFaceDetector):
                 min_face_detection_confidence=0.4,
                 min_face_presence_confidence=0.4,
             )
-            return vision.FaceLandmarker.create_from_options(options)
+
+            # Chặn các thông báo khởi tạo C++ (glog/xnnpack) in ra màn hình
+            import sys
+            stderr_fd, saved_fd = None, None
+            try:
+                stderr_fd = sys.stderr.fileno()
+                saved_fd = os.dup(stderr_fd)
+                devnull_fd = os.open(os.devnull, os.O_WRONLY)
+                os.dup2(devnull_fd, stderr_fd)
+                os.close(devnull_fd)
+            except Exception:
+                pass
+
+            try:
+                return vision.FaceLandmarker.create_from_options(options)
+            finally:
+                if saved_fd is not None and stderr_fd is not None:
+                    try:
+                        os.dup2(saved_fd, stderr_fd)
+                        os.close(saved_fd)
+                    except Exception:
+                        pass
         except Exception:
             return None
 

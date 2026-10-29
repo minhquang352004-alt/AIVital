@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from aivitals_engine.signal.detrend import smoothness_priors_detrend
+from aivitals_engine.signal.detrend import smoothness_priors_detrend, _get_detrend_solver
 
 
 class TestDetrend(unittest.TestCase):
@@ -27,6 +27,17 @@ class TestDetrend(unittest.TestCase):
         short_sig = np.array([1.0, 2.0])
         res = smoothness_priors_detrend(short_sig)
         self.assertTrue(np.array_equal(short_sig, res))
+
+    def test_detrend_solver_cache_consistency(self):
+        """Kiểm chứng cache splu hoạt động ổn định và trả về cùng instance solver."""
+        s1 = _get_detrend_solver(240, 100.0)
+        s2 = _get_detrend_solver(240, 100.0)
+        self.assertIs(s1, s2)
+
+        x = np.sin(np.linspace(0, 10, 240)) + np.linspace(0, 5, 240)
+        y1 = smoothness_priors_detrend(x, lambda_value=100.0)
+        y2 = smoothness_priors_detrend(x, lambda_value=100.0)
+        np.testing.assert_allclose(y1, y2, rtol=1e-12, atol=1e-12)
 
 
 if __name__ == "__main__":
