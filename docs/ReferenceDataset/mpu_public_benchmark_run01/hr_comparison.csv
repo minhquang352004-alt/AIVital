@@ -1,0 +1,3 @@
+window,analysis_start_seconds,analysis_end_seconds,hr_support_start_seconds,hr_support_end_seconds,reference_hr_bpm,estimated_hr_bpm,hr_status,sqi,confidence,issues,signed_error_bpm,alignment_assumed,independent_sample_sync_verified
+1,0,30,20.0,30.0,71.0,,INVALID,0.1,0.354,SIGNAL_QUALITY_UNUSABLE;LOW_CONFIDENCE,,True,False
+2,30,60,50.0,60.0,71.0,,INVALID,0.0,0.188,SIGNAL_QUALITY_UNUSABLE;VERY_LOW_CONFIDENCE,,True,False

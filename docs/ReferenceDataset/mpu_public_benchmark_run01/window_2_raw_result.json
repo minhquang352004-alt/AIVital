@@ -1,0 +1,193 @@
+{
+  "schema_version": "1.0.0",
+  "result_id": "71f473ae-7b21-4264-bfa7-449a4fed0e28",
+  "session_id": "mpu-public-window-2",
+  "engine_version": "0.1.0",
+  "created_at": "2026-10-14T16:48:46.255445Z",
+  "source": {
+    "rppg_method": "POS",
+    "rppg_method_version": "1.0",
+    "sampling_rate_hz": 30.0,
+    "signal_quality": 0.0,
+    "missing_ratio": 0.0
+  },
+  "window": {
+    "start": "1970-01-01T00:00:30Z",
+    "end": "1970-01-01T00:01:00Z",
+    "duration_seconds": 30.0
+  },
+  "status": "INVALID",
+  "vitals": [
+    {
+      "code": "heart_rate",
+      "value": null,
+      "unit": "bpm",
+      "timestamp": "1970-01-01T00:01:00Z",
+      "window": {
+        "start": "1970-01-01T00:00:50Z",
+        "end": "1970-01-01T00:01:00Z",
+        "duration_seconds": 10.0
+      },
+      "quality": 0.0,
+      "confidence": 0.188,
+      "status": "INVALID",
+      "issues": [
+        {
+          "code": "SIGNAL_QUALITY_UNUSABLE",
+          "severity": "ERROR",
+          "message": "Ch\u1ea5t l\u01b0\u1ee3ng t\u00edn hi\u1ec7u kh\u00f4ng \u0111\u1ee7 \u0111\u1ec3 s\u1eed d\u1ee5ng",
+          "details": {
+            "signal_quality": 0.0
+          }
+        },
+        {
+          "code": "VERY_LOW_CONFIDENCE",
+          "severity": "ERROR",
+          "message": "\u0110\u1ed9 tin c\u1eady qu\u00e1 th\u1ea5p \u0111\u1ec3 tr\u1ea3 k\u1ebft qu\u1ea3",
+          "details": {
+            "confidence": 0.188
+          }
+        }
+      ],
+      "algorithm": {
+        "name": "hr_spectral_peak_fusion",
+        "version": "0.1.0"
+      },
+      "model": null
+    },
+    {
+      "code": "hrv_rmssd",
+      "value": null,
+      "unit": "ms",
+      "timestamp": "1970-01-01T00:01:00Z",
+      "window": {
+        "start": "1970-01-01T00:00:30Z",
+        "end": "1970-01-01T00:01:00Z",
+        "duration_seconds": 30.0
+      },
+      "quality": 0.0,
+      "confidence": 0.0,
+      "status": "INVALID",
+      "issues": [
+        {
+          "code": "COMPUTATION_FAILED",
+          "severity": "ERROR",
+          "message": "Kh\u00f4ng t\u00ednh \u0111\u01b0\u1ee3c ch\u1ec9 s\u1ed1 t\u1eeb t\u00edn hi\u1ec7u hi\u1ec7n t\u1ea1i",
+          "details": {
+            "reason": "LOW_SIGNAL_TO_NOISE"
+          }
+        }
+      ],
+      "algorithm": {
+        "name": "hrv_time_domain",
+        "version": "0.2.0"
+      },
+      "model": null
+    },
+    {
+      "code": "hrv_sdnn",
+      "value": null,
+      "unit": "ms",
+      "timestamp": "1970-01-01T00:01:00Z",
+      "window": {
+        "start": "1970-01-01T00:00:30Z",
+        "end": "1970-01-01T00:01:00Z",
+        "duration_seconds": 30.0
+      },
+      "quality": 0.0,
+      "confidence": 0.0,
+      "status": "INVALID",
+      "issues": [
+        {
+          "code": "COMPUTATION_FAILED",
+          "severity": "ERROR",
+          "message": "Kh\u00f4ng t\u00ednh \u0111\u01b0\u1ee3c ch\u1ec9 s\u1ed1 t\u1eeb t\u00edn hi\u1ec7u hi\u1ec7n t\u1ea1i",
+          "details": {
+            "reason": "LOW_SIGNAL_TO_NOISE"
+          }
+        }
+      ],
+      "algorithm": {
+        "name": "hrv_time_domain",
+        "version": "0.2.0"
+      },
+      "model": null
+    },
+    {
+      "code": "hrv_mean_ibi",
+      "value": null,
+      "unit": "ms",
+      "timestamp": "1970-01-01T00:01:00Z",
+      "window": {
+        "start": "1970-01-01T00:00:30Z",
+        "end": "1970-01-01T00:01:00Z",
+        "duration_seconds": 30.0
+      },
+      "quality": 0.0,
+      "confidence": 0.0,
+      "status": "INVALID",
+      "issues": [
+        {
+          "code": "COMPUTATION_FAILED",
+          "severity": "ERROR",
+          "message": "Kh\u00f4ng t\u00ednh \u0111\u01b0\u1ee3c ch\u1ec9 s\u1ed1 t\u1eeb t\u00edn hi\u1ec7u hi\u1ec7n t\u1ea1i",
+          "details": {
+            "reason": "LOW_SIGNAL_TO_NOISE"
+          }
+        }
+      ],
+      "algorithm": {
+        "name": "hrv_time_domain",
+        "version": "0.2.0"
+      },
+      "model": null
+    },
+    {
+      "code": "respiratory_rate",
+      "value": null,
+      "unit": "brpm",
+      "timestamp": "1970-01-01T00:01:00Z",
+      "window": {
+        "start": "1970-01-01T00:00:30Z",
+        "end": "1970-01-01T00:01:00Z",
+        "duration_seconds": 30.0
+      },
+      "quality": 0.0,
+      "confidence": 0.0,
+      "status": "INVALID",
+      "issues": [
+        {
+          "code": "COMPUTATION_FAILED",
+          "severity": "ERROR",
+          "message": "Kh\u00f4ng t\u00ednh \u0111\u01b0\u1ee3c ch\u1ec9 s\u1ed1 t\u1eeb t\u00edn hi\u1ec7u hi\u1ec7n t\u1ea1i",
+          "details": {
+            "reason": "RESPIRATORY_COMPONENTS_DISAGREE"
+          }
+        }
+      ],
+      "algorithm": {
+        "name": "rr_modulation_fusion",
+        "version": "0.1.0"
+      },
+      "model": null
+    }
+  ],
+  "issues": [
+    {
+      "code": "SIGNAL_QUALITY_UNUSABLE",
+      "severity": "ERROR",
+      "message": "Ch\u1ea5t l\u01b0\u1ee3ng t\u00edn hi\u1ec7u kh\u00f4ng \u0111\u1ee7 \u0111\u1ec3 s\u1eed d\u1ee5ng",
+      "details": {
+        "signal_quality": 0.0
+      }
+    },
+    {
+      "code": "VERY_LOW_CONFIDENCE",
+      "severity": "ERROR",
+      "message": "\u0110\u1ed9 tin c\u1eady qu\u00e1 th\u1ea5p \u0111\u1ec3 tr\u1ea3 k\u1ebft qu\u1ea3",
+      "details": {
+        "confidence": 0.188
+      }
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "knowledge_version": "0.2.0-hao-review",
+  "review_status": "wording_reviewed_by_data_health_research_pending_clinician",
+  "reviewer_role": "Data / Health Research (Hào); chưa có bác sĩ/chuyên gia lâm sàng duyệt",
+  "disclaimer": "Kết quả là ước tính từ camera, chỉ để tham khảo cho mục đích theo dõi sức khỏe tổng quát (wellness). Đây không phải chẩn đoán y khoa và không thay thế thiết bị đo hoặc nhân viên y tế. Nếu có triệu chứng bất thường, hãy liên hệ nhân viên y tế.",
+  "findings": {
+    "resting_heart_rate_within_typical_range": {
+      "severity": "info",
+      "evidence_level": "established",
+      "interpretation": "Nhịp tim ước tính khi nghỉ nằm trong khoảng thường gặp ở người trưởng thành (khoảng 60–100 nhịp/phút).",
+      "caution": "Nằm trong khoảng thường gặp không loại trừ vấn đề sức khỏe. Nhịp tim thay đổi theo vận động, cảm xúc, cà phê, thuốc và điều kiện đo; ước tính từ camera có thể sai lệch khi cử động hoặc ánh sáng thay đổi."
+    },
+    "resting_heart_rate_above_typical_range": {
+      "severity": "attention",
+      "evidence_level": "established",
+      "interpretation": "Nhịp tim ước tính khi nghỉ cao hơn khoảng thường gặp ở người trưởng thành (trên 100 nhịp/phút).",
+      "caution": "Vừa vận động, căng thẳng, cà phê, sốt hoặc cử động khi đo đều có thể làm kết quả cao. Hãy ngồi nghỉ ít nhất 5 phút rồi đo lại. Nếu kết quả cao lặp lại nhiều lần, hãy hỏi ý kiến nhân viên y tế. Nếu có đau ngực, khó thở nhiều, ngất hoặc lơ mơ, hãy gọi cấp cứu 115 hoặc đến cơ sở y tế gần nhất ngay."
+    },
+    "resting_heart_rate_below_typical_range": {
+      "severity": "attention",
+      "evidence_level": "established",
+      "interpretation": "Nhịp tim ước tính khi nghỉ thấp hơn khoảng thường gặp ở người trưởng thành (dưới 60 nhịp/phút).",
+      "caution": "Nhịp tim thấp có thể gặp ở người tập luyện thể thao thường xuyên hoặc người đang dùng một số loại thuốc; tín hiệu camera yếu cũng có thể làm kết quả thấp sai. Hãy đo lại. Nếu kèm mệt nhiều, chóng mặt, đau ngực, khó thở hoặc ngất, hãy gọi cấp cứu 115 hoặc đến cơ sở y tế gần nhất ngay."
+    },
+    "respiratory_rate_within_typical_range": {
+      "severity": "info",
+      "evidence_level": "promising",
+      "interpretation": "Nhịp thở ước tính khi nghỉ nằm trong khoảng thường gặp ở người trưởng thành (khoảng 12–20 lần/phút).",
+      "caution": "Nhịp thở được suy ra gián tiếp từ tín hiệu mạch trên camera, không đo trực tiếp luồng khí, nên rất nhạy với cử động, nói chuyện và cách ngồi khi đo."
+    },
+    "respiratory_rate_above_typical_range": {
+      "severity": "attention",
+      "evidence_level": "promising",
+      "interpretation": "Nhịp thở ước tính khi nghỉ cao hơn khoảng thường gặp ở người trưởng thành (trên 20 lần/phút).",
+      "caution": "Nói chuyện, cử động hoặc vừa vận động có thể làm kết quả cao. Hãy ngồi yên, thở tự nhiên và đo lại. Nếu thấy khó thở, hãy liên hệ nhân viên y tế; nếu khó thở nhiều, đau ngực hoặc môi tím tái, hãy gọi cấp cứu 115 ngay."
+    },
+    "respiratory_rate_below_typical_range": {
+      "severity": "attention",
+      "evidence_level": "promising",
+      "interpretation": "Nhịp thở ước tính khi nghỉ thấp hơn khoảng thường gặp ở người trưởng thành (dưới 12 lần/phút).",
+      "caution": "Chủ động thở chậm, thở sâu hoặc tín hiệu camera yếu có thể làm kết quả thấp. Hãy thở tự nhiên và đo lại. Nếu kèm lơ mơ, khó tỉnh hoặc khó thở, hãy gọi cấp cứu 115 ngay."
+    },
+    "hrv_single_measurement_context": {
+      "severity": "info",
+      "evidence_level": "insufficient",
+      "interpretation": "Biến thiên nhịp tim (HRV) từ một lần đo ngắn bằng camera chỉ phản ánh trạng thái tại thời điểm đo và chưa được đối chiếu với điện tâm đồ trong dự án này.",
+      "caution": "Không so HRV với một ngưỡng chung. HRV khác nhiều giữa các cá nhân và rất nhạy với cử động; nếu muốn theo dõi, hãy so xu hướng của chính bạn qua nhiều lần đo trong cùng điều kiện (cùng giờ, cùng tư thế)."
+    }
+  }
+}

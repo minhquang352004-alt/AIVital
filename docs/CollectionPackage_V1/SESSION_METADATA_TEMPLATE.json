@@ -1,0 +1,22 @@
+{
+  "sample_id": null, "subject_id": null, "session_id": null,
+  "consent_record_id": null, "consent_version": null, "collection_timestamp": null,
+  "video_filename": null, "video_start_timestamp": null, "video_end_timestamp": null,
+  "video_duration_sec": null, "width_px": null, "height_px": null, "fps_actual": null,
+  "video_timebase": null, "reference_filename": null, "reference_device": null,
+  "reference_type": null, "reference_value_kind": null, "reference_start_timestamp": null,
+  "reference_end_timestamp": null, "reference_sampling_rate_hz": null, "reference_timebase": null,
+  "sync_method": null, "sync_offset_ms": null, "sync_drift_ppm": null, "sync_error_ms": null,
+  "reference_hr_bpm": null, "reference_sbp_mmhg": null, "reference_dbp_mmhg": null,
+  "bp_measurement_start_timestamp": null, "bp_measurement_end_timestamp": null,
+  "reference_quality": null, "video_quality": null, "quality_label": null,
+  "exclusion_reason": null, "scenario": null, "engine_result_filename": null,
+  "engine_status": null, "engine_issue_codes": null, "notes": null,
+  "subject_age_years": null, "subject_sex": null, "fitzpatrick_type": null,
+  "camera_device": null, "camera_facing": null, "illuminance_lux": null,
+  "reference_hr_before_bpm": null, "reference_hr_during_bpm": null, "reference_hr_after_bpm": null,
+  "reference_bp_before_sbp_mmhg": null, "reference_bp_before_dbp_mmhg": null,
+  "reference_bp_during_sbp_mmhg": null, "reference_bp_during_dbp_mmhg": null,
+  "reference_bp_after_sbp_mmhg": null, "reference_bp_after_dbp_mmhg": null,
+  "initialization_timestamp": null, "session_mode": null
+}
