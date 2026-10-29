@@ -1,0 +1,26 @@
+{
+  "source": "https://doi.org/10.6084/m9.figshare.29377835",
+  "video_file_id": 55553429,
+  "reference_file_id": 55553426,
+  "license": "CC BY 4.0",
+  "original_video_fps": 60.0,
+  "video_frames": 34496,
+  "reference_rows": 34496,
+  "analysis_fps": 30.0,
+  "windows_attempted": 2,
+  "windows_with_estimate": 0,
+  "windows_ok": 0,
+  "mae_bpm_exploratory": null,
+  "rmse_bpm_exploratory": null,
+  "bias_bpm_exploratory": null,
+  "sync_error_ms": null,
+  "strict_reference_acceptance": false,
+  "assumptions": [
+    "Adjacent CSV/video IDs with exactly 34496 rows/frames; candidate pairing, no released per-file manifest verified",
+    "Paper states reference 60 Hz and alignment; Count index is treated as aligned video-frame index for this exploratory test",
+    "CSV has no timestamp column; sample-specific offset/drift/residual not independently verifiable",
+    "Synthetic epoch in raw contract encodes relative time only; no capture UTC inferred",
+    "Offline ROI/POS comparison, not identical to production realtime quality gate; no thresholds changed"
+  ],
+  "limitations": "One public candidate, two windows; no subject generalization/clinical accuracy claim. Metrics include non-null BAD estimates and are not a strict PASS."
+}

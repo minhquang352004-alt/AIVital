@@ -73,3 +73,7 @@ Các điều kiện loại kế thừa Week 2 gồm VFR, frame drop >5%, video l
 - [ ] Có quality label.
 - [ ] Có lý do loại nếu REJECT.
 - [ ] Đưa sample hợp lệ vào Reference Dataset V0.
+
+## 7. Trạng thái áp dụng 2026-10-14
+
+phone01.mp4 hiện có là video-only: decode được, cần rotate 270 trước detect. Chưa có reference device/file, capture UTC, consent record, lux hoặc sync evidence nên chưa đủ protocol reference. FPS decoder ~29.609 Hz không chứng minh CFR/đạt mục tiêu >=30 FPS. Kết quả đo lại và missing fields nằm trong HAO_WEEK3_WEEK4_STATUS.md; không đổi các gate V0 để nhận sample này.
