@@ -106,10 +106,27 @@ def generate_synthetic_stream(
 class EngineBenchmarker:
     """Điều phối đo kiểm toàn bộ hiệu năng và độ ổn định của rPPG Engine."""
 
-    def __init__(self, video_path: Optional[str] = None, max_sec: float = 30.0):
+    def __init__(self, video_path: Optional[str] = None, max_sec: float = 0.0):
         self.video_path = video_path
         self.max_sec = max_sec
         self.process = psutil.Process() if HAS_PSUTIL else None
+        self.detector_desc = self._detect_backend_info()
+
+    def _detect_backend_info(self) -> str:
+        """Nhận diện bộ Face Detector đang được cấu hình và trạng thái hoạt động."""
+        try:
+            probe = RealtimeSignalPipeline(method="POS")
+            det = probe._face_detector
+            det_name = type(det).__name__
+            if det_name == "MediaPipeFaceDetector":
+                if getattr(det, "_landmarker", None) is not None:
+                    return "Google MediaPipe Face Mesh (478 landmarks, Active)"
+                return "Google MediaPipe (Fallback to Haar Cascade - .task not loaded)"
+            elif det_name == "HaarCascadeFaceDetector":
+                return "Haar Cascade (haarcascade_frontalface_default.xml)"
+            return det_name
+        except Exception as e:
+            return f"Unknown ({e})"
 
     def _load_or_generate_frames(self) -> List[Tuple[np.ndarray, float]]:
         """Tải frame từ video (ưu tiên vid.avi) hoặc sinh synthetic nếu không có."""
@@ -215,16 +232,20 @@ class EngineBenchmarker:
         sqi_multi = []
         r_mean_list = []
 
-        dummy_bbox = (40, 30, 160, 180)
+        real_bbox = (180, 100, 260, 280)
+        if frames:
+            det_bbox = pipeline_multi._face_detector.detect(frames[0][0])
+            if det_bbox is not None:
+                real_bbox = det_bbox
 
         for frame, ts in frames:
-            # 1. Đo riêng tốc độ hàm trích xuất ROI
+            # 1. Đo riêng tốc độ hàm trích xuất ROI trên khuôn mặt thực của vid.avi
             t0 = time.perf_counter()
-            _ = extractor_single.extract_mean_rgb(frame, dummy_bbox)
+            _ = extractor_single.extract_mean_rgb(frame, real_bbox)
             times_single_extract.append((time.perf_counter() - t0) * 1000.0)
 
             t1 = time.perf_counter()
-            sub_res = extractor_multi.extract_sub_roi_rgbs(frame, dummy_bbox)
+            sub_res = extractor_multi.extract_sub_roi_rgbs(frame, real_bbox)
             times_multi_extract.append((time.perf_counter() - t1) * 1000.0)
 
             # 2. Đo toàn bộ luồng pipeline End-to-End
@@ -369,7 +390,8 @@ class EngineBenchmarker:
         md.append(f"**Môi trường thử nghiệm:** Python {sys.version.split()[0]} | Nền tảng: {sys.platform}  ")
         md.append(f"**Dữ liệu kiểm thử:** `{os.path.basename(self.video_path) if self.video_path else 'Synthetic Standard Stream'}`  ")
         duration_str = f"{self.max_sec}s" if self.max_sec and self.max_sec > 0 else "Toàn bộ video (Full duration)"
-        md.append(f"**Thời lượng kiểm thử:** {duration_str}\n")
+        md.append(f"**Thời lượng kiểm thử:** {duration_str}  ")
+        md.append(f"**Bộ phát hiện khuôn mặt:** `{self.detector_desc}`\n")
         md.append("---\n")
 
         # Mục 1: So sánh thuật toán
@@ -476,19 +498,19 @@ class EngineBenchmarker:
 def main():
     parser = argparse.ArgumentParser(description="AIVitals Signal Engine Performance Benchmark (Khang - Week 6)")
     parser.add_argument("--video", type=str, default=None, help="Đường dẫn file video (.avi / .mp4). Mặc định ưu tiên vid.avi.")
-    parser.add_argument("--max-sec", type=float, default=30.0, help="Số giây tối đa để chạy benchmark (mặc định 30s).")
+    parser.add_argument("--max-sec", type=float, default=None, help="Số giây tối đa để chạy benchmark (mặc định: toàn bộ video - Full duration).")
     parser.add_argument("--quick", action="store_true", help="Chạy nhanh (10s) để kiểm tra nhanh.")
-    parser.add_argument("--full", action="store_true", help="Chạy toàn bộ thời lượng của video (không giới hạn giây).")
+    parser.add_argument("--full", action="store_true", default=True, help="Chạy toàn bộ thời lượng của video (mặc định).")
     parser.add_argument("--save-docs", action="store_true", help="Lưu thêm bản sao báo cáo vào docs/ENGINE_BENCHMARK.md.")
     parser.add_argument("--output-dir", type=str, default="outputs/benchmarks", help="Thư mục xuất báo cáo.")
     args = parser.parse_args()
 
-    if args.full:
-        max_sec = 0.0  # 0.0 báo hiệu chạy toàn bộ video
-    elif args.quick:
+    if args.quick:
         max_sec = 10.0
-    else:
+    elif args.max_sec is not None:
         max_sec = args.max_sec
+    else:
+        max_sec = 0.0  # Mặc định: toàn bộ video (Full duration)
 
     # Ưu tiên vid.avi theo chỉ định của Khang
     video_path = args.video
@@ -502,12 +524,14 @@ def main():
                 video_path = p
                 break
 
+    benchmarker = EngineBenchmarker(video_path=video_path, max_sec=max_sec)
+
+    duration_str = f"{max_sec}s per test" if max_sec > 0 else "Toàn bộ video (Full duration)"
     print("=" * 70)
     print("  AIVITALS ENGINE PERFORMANCE & RELIABILITY BENCHMARK (TUẦN 6)")
-    print(f"  Thời lượng: {max_sec}s per test | Video: {os.path.basename(video_path) if video_path else 'Synthetic Stream'}")
+    print(f"  Thời lượng: {duration_str} | Video: {os.path.basename(video_path) if video_path else 'Synthetic Stream'}")
+    print(f"  Face Detector: {benchmarker.detector_desc}")
     print("=" * 70)
-
-    benchmarker = EngineBenchmarker(video_path=video_path, max_sec=max_sec)
 
     # 1. So sánh 3 thuật toán
     print("\n[1/3] Đang đo kiểm hiệu năng 3 thuật toán (POS, CHROM, GREEN)...")
@@ -535,6 +559,7 @@ def main():
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "duration_sec": max_sec,
         "video_source": os.path.basename(video_path) if video_path else "synthetic",
+        "face_detector": benchmarker.detector_desc,
         "methods": methods_res,
         "roi_analysis": roi_res,
         "failure_cases": fail_res,
@@ -561,9 +586,6 @@ def main():
             f.write(md_report)
         print(f"[OK] Đã cập nhật tài liệu chính thức -> {docs_path}")
 
-    print("\n" + "=" * 70)
-    print("  HOÀN TẤT TOÀN DIỆN TASK 3, 4, 5 CHO TUẦN 6!")
-    print("=" * 70)
 
 
 if __name__ == "__main__":

@@ -1,3 +1,16 @@
+"""
+aivitals_engine/pipeline.py
+===========================
+[LEGACY / BATCH MODE]
+Pipeline trích xuất BVP ở chế độ offline / batch từ chuỗi mảng RGB hoặc file CSV (Tuần 1).
+
+GHI CHÚ HỆ THỐNG:
+- Module này KHÔNG thực hiện Face Detection hay trích xuất Multi-ROI thời gian thực.
+- Đối với luồng webcam streaming camera và môi trường Production, hãy sử dụng:
+      `from aivitals_engine.signal_pipeline_realtime import RealtimeSignalPipeline`
+- Module này được giữ lại nhằm đảm bảo tương thích ngược (Backward Compatibility)
+  cho các bài kiểm thử batch và công cụ phân tích tĩnh.
+"""
 import os
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, Union
@@ -109,8 +122,11 @@ class BVPResult:
 
 class SignalRPPGPipeline:
     """
-    Pipeline thực thi Signal / rPPG:
+    [LEGACY / BATCH MODE]
+    Pipeline thực thi Signal / rPPG ở chế độ offline / batch:
     Input (Video / RGB) -> Signal Extraction -> Preprocessing -> rPPG (GREEN/CHROM/POS/Deep Model) -> BVP -> Quality -> Metadata
+
+    Khuyến nghị Production: Sử dụng `RealtimeSignalPipeline` trong `signal_pipeline_realtime.py`.
     """
 
     def __init__(self, fps: Optional[float] = None):
@@ -177,4 +193,3 @@ class SignalRPPGPipeline:
             algo_choice = "POS"
         rgb_array, fs = load_sample(source_path, default_fps=self.default_fps)
         return self.run_on_rgb(rgb_array, fs, algorithm=algo_choice)
-

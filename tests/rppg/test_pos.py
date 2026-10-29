@@ -45,6 +45,26 @@ class TestPOSMethod(unittest.TestCase):
         self.assertEqual(meta["method"], "POS")
         self.assertEqual(meta["signal_length"], self.N)
 
+    def test_pos_uniform_envelope_no_edge_dropoff(self):
+        """Biên độ sóng BVP ở rìa đầu và cuối cửa sổ không bị teo hình quả trám."""
+        pulse = np.sin(2 * np.pi * 1.2 * self.t)
+        clean_rgb = np.column_stack([
+            160.0 - 0.6 * pulse,
+            110.0 - 1.8 * pulse,
+            85.0 - 0.3 * pulse,
+        ])
+        pos = POSMethod(fps=self.fs, lowcut=0.75, highcut=2.50)
+        bvp = pos.process(clean_rgb)
+
+        peaks, _ = signal.find_peaks(bvp, distance=15)
+        self.assertGreaterEqual(len(peaks), 8)
+        mid_height = float(np.median(bvp[peaks[2:-2]]))
+        first_height = float(bvp[peaks[0]])
+        last_height = float(bvp[peaks[-1]])
+
+        self.assertGreater(first_height, 0.75 * mid_height)
+        self.assertGreater(last_height, 0.75 * mid_height)
+
 
 if __name__ == "__main__":
     unittest.main()
